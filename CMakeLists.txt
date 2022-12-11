@@ -20,7 +20,7 @@ include_directories(
   ${CMAKE_CURRENT_BINARY_DIR}
 )
 
-set(EMC_SRC_DIR ${GLOBL_SRC_DIR}/${NAME})
+set(EMC_SDK_DIR ${HOST_SDK_DIR}/${NAME})
 
 set(inc
   host.h gateway.h reactor.h monitor.h session.h
@@ -41,11 +41,11 @@ set_target_properties(${NAME} PROPERTIES PREFIX "${PREFIX}")
 target_link_libraries(${NAME} ${libs})
 
 if(SDK)
-  file(MAKE_DIRECTORY ${EMC_SRC_DIR})
+  file(MAKE_DIRECTORY ${EMC_SDK_DIR})
   install(
     FILES
       ${inc}
     DESTINATION
-      ${EMC_SRC_DIR}
+      ${EMC_SDK_DIR}
   )
 endif(SDK)
