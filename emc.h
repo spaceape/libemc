@@ -28,8 +28,8 @@ namespace emc {
 
 class reactor;
 class session;
-class monitor;
 class service;
+class monitor;
 
 /*namespace emc*/ }
 #endif

@@ -75,10 +75,10 @@ class reactor
   virtual void      emc_sync(const sys::time_t&) noexcept;
 
   protected:
-          bool  emc_attach_session(session*) noexcept;
-          void  emc_detach_session(session*) noexcept;
-          host* emc_attach_interface(host::type, const std::string&) noexcept;
-          void  emc_detach_interface(host*) noexcept;
+          bool      emc_attach_session(session*) noexcept;
+          void      emc_detach_session(session*) noexcept;
+          host*     emc_attach_interface(host::type, const std::string&) noexcept;
+          void      emc_detach_interface(host*) noexcept;
 
   public:
           reactor() noexcept;

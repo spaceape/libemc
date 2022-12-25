@@ -312,6 +312,7 @@ void  reactor::sync(const sys::time_t& time, const sys::delay_t& wait) noexcept
                                   ctl_session_spawn(l_event_list[i_event].data.fd, l_interface);
                               } else
                                   ctl_session_drop(l_event_list[i_event].data.fd);
+                              close(l_event_list[i_event].data.fd);
                           } else
                               printdbg(
                                   "Received an 'accept' event on descriptor `%d` which is not a socket.\n",

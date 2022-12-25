@@ -26,21 +26,23 @@
 namespace emc {
 
 constexpr char emc_tag_request = '?';
+constexpr char emc_tag_help = '?';
 constexpr char emc_tag_response = ']';
 constexpr char emc_tag_sync = '@';
-constexpr char emc_tag_help = '!';
 
 constexpr char emc_request_info = 'i';
 
 constexpr char emc_response_info = 'i';
-constexpr char emc_response_support = 's';
+constexpr char emc_response_service = 's';
 constexpr char emc_response_pong = 'g';
 constexpr char emc_response_okay = '0';
-constexpr char emc_response_error = 'e';
 constexpr char emc_response_bye = 'z';
 constexpr char emc_packet_header_size = 4;  // size of a packet header: 1 byte denoting the channel + 3 for size
 
-constexpr char emc_protocol_name[] = "emc";
+constexpr char emc_service_enable_tag = '+';
+constexpr char emc_service_disable_tag = '-';
+
+constexpr char emc_protocol_name[] = "EMC";
 constexpr char emc_protocol_version[] = "1.0";
 
 constexpr int  emc_type_size = 8;
@@ -51,9 +53,6 @@ constexpr char emc_machine_name_none[] = "(anonymous)";
 constexpr char emc_machine_type_generic[] = "generic";
 constexpr char emc_order_le[] = "le";
 constexpr char emc_order_be[] = "be";
-
-constexpr char ctl_service_gcode[] = "gcode";
-constexpr char ctl_service_telemetry[] = "mtm";
 
 constexpr char emc_generic_ident_chs[] = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ-_";
 constexpr char emc_proto_ident_chs[] = "0123456789abcdefghijklmnopqrstuvwxyz-";

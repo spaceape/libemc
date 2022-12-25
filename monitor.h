@@ -22,32 +22,20 @@
     EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 **/
 #include "emc.h"
-#include "protocol.h"
-#include "gateway.h"
-#include <vector>
+#include "service.h"
 
 namespace emc {
 
 /* monitor
+   a service that does nothing (just listens and dispatches events)
 */
-class monitor
+class monitor: public service
 {
-  protected:
-  virtual bool  emc_dispatch_connect(session*) noexcept;
-  virtual void  emc_dispatch_request(session*, const char*, int) noexcept;
-  virtual int   emc_process_request(session*, int, command&) noexcept;
-  virtual void  emc_dispatch_response(session*, const char*, int) noexcept;
-  virtual int   emc_process_response(session*, int, command&) noexcept;
-  virtual void  emc_dispatch_comment(session*, const char*, int) noexcept;
-  virtual void  emc_dispatch_packet(session*, int, int, std::uint8_t*) noexcept;
-  virtual void  emc_dispatch_disconnect(session*) noexcept;
-
-  friend class session;
   public:
           monitor() noexcept;
           monitor(const monitor&) noexcept = delete;
           monitor(monitor&&) noexcept = delete;
-          ~monitor();
+  virtual ~monitor();
           monitor& operator=(const monitor&) noexcept = delete;
           monitor& operator=(monitor&&) noexcept = delete;
 };

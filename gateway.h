@@ -113,6 +113,11 @@ class gateway
           void  emc_trip() noexcept;
 
   protected:
+  static  constexpr unsigned int ssf_none = 0u;
+  static  constexpr unsigned int ssf_enable = 1u;
+  static  constexpr unsigned int ssf_disable = 0u;
+    
+  protected:
           int   get_send_mtu() const noexcept;
           bool  set_send_mtu(int) noexcept;
           bool  set_recv_descriptor(int, int = 0) noexcept;
@@ -160,15 +165,17 @@ class gateway
           emc_put(std::forward<Args>(next)...);
   }
 
+  protected:
           int   emc_send_info_response() noexcept;
           void  emc_send_info_request() noexcept;
-          void  emc_send_support_response() noexcept;
+          void  emc_send_service_event(unsigned int, service*) noexcept;
+          void  emc_send_service_response() noexcept;
           void  emc_send_ping_request() noexcept;
           void  emc_send_pong_response() noexcept;
           void  emc_send_sync() noexcept;
           void  emc_send_help() noexcept;
           void  emc_send_raw(const char*, int) noexcept;
-          int   emc_send_error(int, const char* = nullptr, const char* = nullptr) noexcept;
+          int   emc_send_error(int, const char* = nullptr, ...) noexcept;
 
   virtual void  emc_dispatch_request(const char*, int) noexcept;
   virtual int   emc_process_request(int, command&) noexcept;
@@ -190,6 +197,10 @@ class gateway
 
           int      get_recv_descriptor() const noexcept;
           int      get_send_descriptor() const noexcept;
+
+  virtual service* get_service_ptr(int) noexcept;
+  virtual int      get_service_count() const noexcept;
+
           void     feed() noexcept;
           void     flush() noexcept;
           void     reset() noexcept;

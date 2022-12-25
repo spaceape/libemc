@@ -31,39 +31,4 @@ namespace emc {
 {
 }
 
-bool  monitor::emc_dispatch_connect(session*) noexcept
-{
-      return true;
-}
-
-void  monitor::emc_dispatch_request(session*, const char*, int) noexcept
-{
-}
-
-int   monitor::emc_process_request(session*, int, command&) noexcept
-{
-      return err_no_request;
-}
-
-void  monitor::emc_dispatch_response(session*, const char*, int) noexcept
-{
-}
-
-int   monitor::emc_process_response(session*, int, command&) noexcept
-{
-      return err_no_response;
-}
-
-void  monitor::emc_dispatch_comment(session*, const char*, int) noexcept
-{
-}
-
-void  monitor::emc_dispatch_packet(session*, int, int, std::uint8_t*) noexcept
-{
-}
-
-void  monitor::emc_dispatch_disconnect(session*) noexcept
-{
-}
-
 /*namespace emc*/ }

@@ -20,19 +20,21 @@
     EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 **/
 #include "session.h"
-#include "monitor.h"
+#include "service.h"
+#include <config.h>
 
 namespace emc {
 
-      session::session() noexcept:
-      gateway()
+      session::session(unsigned int type) noexcept:
+      gateway(),
+      m_service_flags(type)
 {
-      // do not reserve, monitors are a somewhat uncommon feature
-      // m_monitor_list.reserve(global::cache_small_max);
+      m_service_list.reserve(global::cache_small_max);
 }
 
-      session::session(int rd, int sd) noexcept:
-      gateway(rd, sd)
+      session::session(unsigned int type, int rd, int sd) noexcept:
+      gateway(rd, sd),
+      m_service_flags(type)
 {
       emc_listen();
 }
@@ -42,34 +44,34 @@ namespace emc {
       emc_disconnect();
 }
 
-auto  session::mon_find(monitor* monitor_ptr) noexcept -> std::vector<monitor*>::iterator
+auto  session::svc_find(service* service_ptr) noexcept -> std::vector<service*>::iterator
 {
-      if(monitor_ptr) {
-          for(auto i_monitor = m_monitor_list.begin(); i_monitor != m_monitor_list.end(); i_monitor++) {
-              auto& l_monitor_ptr = *i_monitor;
-              if(l_monitor_ptr == monitor_ptr) {
-                  return i_monitor;
+      if(service_ptr) {
+          for(auto i_service = m_service_list.begin(); i_service != m_service_list.end(); i_service++) {
+              auto& l_service_ptr = *i_service;
+              if(l_service_ptr == service_ptr) {
+                  return i_service;
               }
           }
       }
-      return m_monitor_list.end();
+      return m_service_list.end();
 }
 
 void  session::emc_dispatch_request(const char* message, int length) noexcept
 {
-      for(monitor* i_monitor : m_monitor_list) {
-          i_monitor->emc_dispatch_request(this, message, length);
+      for(service* i_service : m_service_list) {
+          i_service->emc_dispatch_request(this, message, length);
       }
 }
 
 int   session::emc_process_request(int argc, command& args) noexcept
 {
       int l_grc = err_no_request;
-      for(monitor* i_monitor : m_monitor_list) {
-          int l_mrc = i_monitor->emc_process_request(this, argc, args);
+      for(service* i_service : m_service_list) {
+          int l_mrc = i_service->emc_process_request(this, argc, args);
           if(l_mrc != err_no_request) {
               l_grc = l_mrc;
-              // only the `err_next` rc allows the request to be dispatched to further monitors
+              // only the `err_next` rc allows the request to be dispatched to further services
               if(l_mrc & bit_next) {
                   break;
               }
@@ -80,19 +82,19 @@ int   session::emc_process_request(int argc, command& args) noexcept
 
 void  session::emc_dispatch_response(const char* message, int length) noexcept
 {
-      for(monitor* i_monitor : m_monitor_list) {
-          i_monitor->emc_dispatch_response(this, message, length);
+      for(service* i_service : m_service_list) {
+          i_service->emc_dispatch_response(this, message, length);
       }
 }
 
 int   session::emc_process_response(int argc, command& args) noexcept
 {
       int l_grc = err_no_request;
-      for(monitor* i_monitor : m_monitor_list) {
-          int l_mrc = i_monitor->emc_process_request(this, argc, args);
+      for(service* i_service : m_service_list) {
+          int l_mrc = i_service->emc_process_request(this, argc, args);
           if(l_mrc != err_no_request) {
               l_grc = l_mrc;
-              // only the `err_next` rc allows the request to be dispatched to further monitors
+              // only the `err_next` rc allows the request to be dispatched to further services
               if(l_mrc & bit_next) {
                   break;
               }
@@ -103,51 +105,86 @@ int   session::emc_process_response(int argc, command& args) noexcept
 
 void  session::emc_dispatch_comment(const char* message, int length) noexcept
 {
-      for(monitor* i_monitor : m_monitor_list) {
-          i_monitor->emc_dispatch_comment(this, message, length);
+      for(service* i_service : m_service_list) {
+          i_service->emc_dispatch_comment(this, message, length);
       }
 }
 
 void  session::emc_dispatch_packet(int channel, int size, std::uint8_t* data) noexcept
 {
-      for(monitor* i_monitor : m_monitor_list) {
-          i_monitor->emc_dispatch_packet(this, channel, size, data);
+      for(service* i_service : m_service_list) {
+          i_service->emc_dispatch_packet(this, channel, size, data);
       }
 }
 
 void  session::emc_dispatch_disconnect() noexcept
 {
-      for(monitor* i_monitor : m_monitor_list) {
-          i_monitor->emc_dispatch_disconnect(this);
+      for(service* i_service : m_service_list) {
+          i_service->emc_dispatch_detach(this);
       }
 }
 
-bool  session::attach(monitor* monitor_ptr) noexcept
+bool  session::attach(service* service_ptr) noexcept
 {
-      auto i_monitor = mon_find(monitor_ptr);
-      if(i_monitor != m_monitor_list.end()) {
+      auto i_service = svc_find(service_ptr);
+      if(i_service != m_service_list.end()) {
           return true;
       } else
-      if(monitor_ptr != nullptr) {
-          if(bool 
-              l_connect_success = monitor_ptr->emc_dispatch_connect(this);
-              l_connect_success == true) {
-              m_monitor_list.push_back(monitor_ptr);
-              return true;
+      if(service_ptr != nullptr) {
+          int l_service_count = m_service_list.size();
+          if(l_service_count < service_count_max) {
+              if(bool 
+                  l_connect_success = service_ptr->emc_dispatch_attach(this);
+                  l_connect_success == true) {
+                  // save the service into the internal service index
+                  m_service_list.push_back(service_ptr);
+                  // notify the client of the new service, if it is enabled
+                  emc_send_service_event(ssf_enable, service_ptr);
+                  return true;
+              }
           }
       }
       return false;
 }
 
-bool  session::detach(monitor* monitor_ptr) noexcept
+bool  session::detach(service* service_ptr) noexcept
 {
-      auto i_monitor = mon_find(monitor_ptr);
-      if(i_monitor != m_monitor_list.end()) {
-          monitor_ptr->emc_dispatch_disconnect(this);
-          m_monitor_list.erase(i_monitor);
+      auto i_service = svc_find(service_ptr);
+      if(i_service != m_service_list.end()) {
+          // notify the client of the detaching service, if it is enabled
+          emc_send_service_event(ssf_disable, service_ptr);
+          // remove the service from the internal service index
+          service_ptr->emc_dispatch_detach(this);
+          m_service_list.erase(i_service);
           return true;
       }
       return false;
+}
+
+service* session::get_service_ptr(int index) noexcept
+{
+      if(index >= 0) {
+          int l_service_count = m_service_list.size();
+          if(index < l_service_count) {
+              return m_service_list[index];
+          }
+      }
+      return nullptr;
+}
+
+int   session::get_service_count() const noexcept
+{
+      return m_service_list.size();
+}
+
+bool  session::has_service_flags(unsigned int flags, unsigned int expect) const noexcept
+{
+      return (m_service_flags & flags) == (m_service_flags & expect);
+}
+
+auto  session::get_service_flags() const noexcept
+{
+      return m_service_flags;
 }
 
 /*namespace emc*/ }

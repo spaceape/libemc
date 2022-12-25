@@ -29,12 +29,20 @@ namespace emc {
    no error, all went smooth
 */
 static constexpr int err_okay = 0;
+static constexpr char msg_ready[] = "READY";
 
 /* err_parse
    request could not be parsed 
 */
 static constexpr int  err_parse = -128;
 static constexpr char msg_parse[] = "INVALID REQUEST";
+
+/* err_bad_request
+   request is generally erroneous
+*/
+static constexpr int  err_bad_request = -2;
+static constexpr char msg_bad_request[] = "BAD REQUEST";
+
 
 /* err_no_request
    request could not be handled by any attached modules

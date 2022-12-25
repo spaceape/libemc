@@ -67,9 +67,13 @@ constexpr float message_trip_time = 60.0f;
 */
 constexpr float message_ping_time = message_trip_time / 2;
 
-/* host_connect_time
+/* socket_connect_time
 */
 constexpr float socket_connect_time = 10.0f;
+
+/* service count max
+*/
+constexpr int   service_count_max = 256;
 
 /*namespace emc*/ }
 #endif

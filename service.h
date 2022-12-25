@@ -1,7 +1,7 @@
 #ifndef emc_service_h
 #define emc_service_h
 /** 
-    Copyright (c) 2021, wicked systems
+    Copyright (c) 2022, wicked systems
     All rights reserved.
 
     Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following
@@ -23,22 +23,36 @@
 **/
 #include "emc.h"
 #include "protocol.h"
+#include "feature.h"
+#include "gateway.h"
 
 namespace emc {
 
-// class service
-// {
-//   bool    m_enable;
-//   int     m_channel;
+class service
+{
+  protected:
+  virtual bool  emc_dispatch_attach(session*) noexcept;
+  virtual void  emc_dispatch_request(session*, const char*, int) noexcept;
+  virtual int   emc_process_request(session*, int, command&) noexcept;
+  virtual void  emc_dispatch_response(session*, const char*, int) noexcept;
+  virtual int   emc_process_response(session*, int, command&) noexcept;
+  virtual void  emc_dispatch_comment(session*, const char*, int) noexcept;
+  virtual void  emc_dispatch_packet(session*, int, int, std::uint8_t*) noexcept;
+  virtual void  emc_dispatch_detach(session*) noexcept;
 
-//   public:
-//           service(const char*, bool = true) noexcept;
-//           service(const service&) noexcept;
-//           service(service&&) noexcept;
-//           ~service();
-//           service& operator=(const service&) noexcept;
-//           service& operator=(service&&) noexcept;
-// };
+  friend class session;
+  public:
+          service() noexcept;
+          service(const service&) noexcept = delete;
+          service(service&&) noexcept = delete;
+          ~service();
+  virtual const char* get_name() const noexcept;
+  virtual feature*    get_feature_ptr(int) noexcept;
+  virtual int         get_feature_count() const noexcept;
+  virtual bool        get_enabled(bool = true) const noexcept;
+          service& operator=(const service&) noexcept = delete;
+          service& operator=(service&&) noexcept = delete;
+};
 
 /*namespace emc*/ }
 #endif

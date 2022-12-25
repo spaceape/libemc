@@ -32,11 +32,13 @@ namespace emc {
 */
 class session: public gateway
 {
-  std::vector<monitor*> m_monitor_list;
+  unsigned int          m_service_flags;
+  std::vector<service*> m_service_list;
+
+  private:
+          auto  svc_find(service*) noexcept -> std::vector<service*>::iterator;
 
   protected:
-          auto  mon_find(monitor*) noexcept -> std::vector<monitor*>::iterator;
-
   virtual void  emc_dispatch_request(const char*, int) noexcept override;
   virtual int   emc_process_request(int, command&) noexcept override;
   virtual void  emc_dispatch_response(const char*, int) noexcept override;
@@ -45,15 +47,28 @@ class session: public gateway
   virtual void  emc_dispatch_packet(int, int, std::uint8_t*) noexcept override;
   virtual void  emc_dispatch_disconnect() noexcept override;
 
-  friend class monitor;
   public:
-          session() noexcept;
-          session(int, int) noexcept;
+  static constexpr unsigned int bit_none = 0u;
+  static constexpr unsigned int bit_local = 1u;                   // session binds a local resource
+  static constexpr unsigned int bit_network = 2u;                 // session binds a network resource
+  static constexpr unsigned int bit_remote = bit_network;         // session binds a remote resource
+  static constexpr unsigned int bit_all = 0xffffffff;
+  static constexpr unsigned int type_undef = 0u;
+  static constexpr unsigned int type_local = bit_local;
+  static constexpr unsigned int type_remote = bit_local;
+  friend class service;
+  public:
+          session(unsigned int) noexcept;
+          session(unsigned int, int, int) noexcept;
           session(const session&) noexcept = delete;
           session(session&&) noexcept = delete;
-          ~session();
-          bool     attach(monitor*) noexcept;
-          bool     detach(monitor*) noexcept;
+  virtual ~session();
+          bool     attach(service*) noexcept;
+          bool     detach(service*) noexcept;
+  virtual service* get_service_ptr(int) noexcept override;
+  virtual int      get_service_count() const noexcept override;
+          bool     has_service_flags(unsigned int, unsigned int = bit_all) const noexcept;
+          auto     get_service_flags() const noexcept;
           session& operator=(const session&) noexcept = delete;
           session& operator=(session&&) noexcept = delete;
 };

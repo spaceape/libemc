@@ -1,5 +1,5 @@
 /** 
-    Copyright (c) 2021, wicked systems
+    Copyright (c) 2022, wicked systems
     All rights reserved.
 
     Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following
@@ -23,30 +23,67 @@
 
 namespace emc {
 
-//       service::service(const char*) noexcept
-// {
-// }
+      service::service() noexcept
+{
+}
 
-//       service::service(const service& copy) noexcept
-// {
-// }
+      service::~service()
+{
+}
 
-//       service::service(service&& copy) noexcept
-// {
-// }
+bool  service::emc_dispatch_attach(session*) noexcept
+{
+      return true;
+}
 
-//       service::~service()
-// {
-// }
+void  service::emc_dispatch_request(session*, const char*, int) noexcept
+{
+}
 
-// service& service::operator=(const service& rhs) noexcept
-// {
-//       return *this;
-// }
+int   service::emc_process_request(session*, int, command&) noexcept
+{
+      return err_no_request;
+}
 
-// service& service::operator=(service&& rhs) noexcept
-// {
-//       return *this;
-// }
+void  service::emc_dispatch_response(session*, const char*, int) noexcept
+{
+}
+
+int   service::emc_process_response(session*, int, command&) noexcept
+{
+      return err_no_response;
+}
+
+void  service::emc_dispatch_comment(session*, const char*, int) noexcept
+{
+}
+
+void  service::emc_dispatch_packet(session*, int, int, std::uint8_t*) noexcept
+{
+}
+
+void  service::emc_dispatch_detach(session*) noexcept
+{
+}
+
+const char* service::get_name() const noexcept
+{
+      return nullptr;
+}
+
+feature* service::get_feature_ptr(int) noexcept
+{
+      return nullptr;
+}
+
+int   service::get_feature_count() const noexcept
+{
+      return 0;
+}
+
+bool  service::get_enabled(bool value) const noexcept
+{
+      return value == false;
+}
 
 /*namespace emc*/ }

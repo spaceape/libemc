@@ -29,24 +29,16 @@ struct feature
 {
   public:
   unsigned int m_id:8;
+  unsigned int m_type:8;
   bool         m_enable:1;
+  char         m_name[12];
   union {
-    char  m_bytes[60];
-  } m_data;
-
-  public:
-  static constexpr unsigned int id_none = 0u;
-  static constexpr unsigned int id_filesystem = 1u;
-  static constexpr unsigned int id_shared_memory = 2u;
-  static constexpr unsigned int id_network = 3u;
-  static constexpr unsigned int id_max  = 64u;
-
-  static constexpr const char*  name[id_max] = {
-      /*id_none*/ "none",
-      /*id_filesystem*/ "filesystem",
-      /*id_shared_memory*/ "memory",
-      /*network*/ "network",
-  };
+    struct {
+        int    lower_bound_value;
+        int    upper_bound_value;
+    }          mm;
+    char       bytes[48];
+  }            m_data;
 };
 
 

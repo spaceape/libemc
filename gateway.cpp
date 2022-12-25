@@ -21,6 +21,7 @@
 **/
 #include "gateway.h"
 #include <config.h>
+#include <service.h>
 #include <cstring>
 #include <fcntl.h>
 
@@ -288,11 +289,32 @@ void  gateway::emc_capture_response(char* message, int length) noexcept
                           }
                       }
                           break;
-                      case emc_response_support:
+                      case emc_response_service:
                           break;
                       case emc_response_pong:
                           break;
-                      case emc_response_error:
+                      case '0':
+                      case '1':
+                      case '2':
+                      case '3':
+                      case '4':
+                      case '5':
+                      case '6':
+                      case '7':
+                      case '8':
+                      case '9':
+                      case 'a':
+                      case 'b':
+                      case 'c':
+                      case 'd':
+                      case 'e':
+                      case 'f':
+                      case 'A':
+                      case 'B':
+                      case 'C':
+                      case 'D':
+                      case 'E':
+                      case 'F':
                           break;
                       case emc_response_bye:
                           break;
@@ -457,7 +479,7 @@ void  gateway::emc_listen() noexcept
           if(m_active_bit =
               (m_recv_descriptor != undef) &&
               (m_send_descriptor != undef);
-             m_active_bit == true) {
+              m_active_bit == true) {
               m_drop_ctr.resume();
               m_host_role = true;
           }
@@ -496,10 +518,9 @@ int   gateway::emc_send_info_response() noexcept
           l_machine_name, SPC,
           l_machine_type, SPC,
           l_architecture_name, '_', l_architecture_type, SPC,
-          fmt::x(m_recv_mtu),
+          fmt::X(m_recv_mtu),
           EOL
       );
-
       return 0;
 }
 
@@ -512,8 +533,46 @@ void  gateway::emc_send_info_request() noexcept
       );
 }
 
-void  gateway::emc_send_support_response() noexcept
+void  gateway::emc_send_service_event(unsigned int event, service* service_ptr) noexcept
 {
+      const char* p_name = service_ptr->get_name();
+      if(p_name != nullptr) {
+          if(p_name[0] != NUL) {
+              char         l_state_char;
+              unsigned int l_state_flag = service_ptr->get_enabled() ? ssf_enable : ssf_disable;
+              if((event & ssf_enable) == ssf_enable) {
+                  // cancel the event if the event and service status flags disagree
+                  if(l_state_flag == ssf_disable) {
+                      return;
+                  }
+                  l_state_char = emc_service_enable_tag;
+              } else
+              if((event & ssf_enable) == ssf_disable) {
+                  // cancel the event if the event and service status flags indicate that it's already disabled
+                  if(l_state_flag == ssf_disable) {
+                      return;
+                  }
+                  l_state_char = emc_service_disable_tag;
+              }
+              emc_put(emc_tag_response, emc_response_service, l_state_char, SPC, p_name);
+              // list features, if the service is enabled
+              // if(l_state_flag == ssf_enable) {
+              // }
+              emc_put(EOL);
+          }
+      }
+
+}
+
+void  gateway::emc_send_service_response() noexcept
+{
+      int l_service_count = get_service_count();
+      for(int i_service = 0; i_service < l_service_count; i_service++) {
+          service* p_service = get_service_ptr(i_service);
+          if(p_service) {
+              emc_send_service_event(ssf_enable, p_service);
+          }
+      }
 }
 
 void  gateway::emc_send_ping_request() noexcept
@@ -527,7 +586,7 @@ void  gateway::emc_send_pong_response() noexcept
 void  gateway::emc_send_sync() noexcept
 {
       emc_send_info_response();
-      emc_send_support_response();
+      emc_send_service_response();
 }
 
 void  gateway::emc_send_help() noexcept
@@ -539,8 +598,49 @@ void  gateway::emc_send_raw(const char* message, int length) noexcept
       emc_emit(length, message);
 }
 
-int   gateway::emc_send_error(int rc, const char*, const char*) noexcept
+int   gateway::emc_send_error(int rc, const char* message, ...) noexcept
 {
+      if(rc != err_okay) {
+          const char* l_message_0 = nullptr;
+          const char* l_message_1 = message;
+          bool        l_message_insert_separator = false;
+          bool        l_message_insert_terminator = false;
+          switch(rc) {
+            case err_parse:
+                l_message_0 = msg_parse;
+                break;
+            case err_bad_request:
+                l_message_0 = msg_bad_request;
+                break;
+            case err_no_request:
+                l_message_0 = msg_no_request;
+                break;
+            default:
+                break;
+          }
+          emc_put(emc_tag_response, fmt::X(rc, 1));
+          if(l_message_0) {
+              if(l_message_0[0]) {
+                  emc_put(SPC, l_message_0);
+                  l_message_insert_separator = true;
+                  l_message_insert_terminator = true;
+              }
+          }
+          if(l_message_1) {
+              if(l_message_1[0]) {
+                  if(l_message_insert_separator) {
+                      emc_put(':');
+                  }
+                  emc_put(SPC);
+                  emc_put(l_message_1);
+                  l_message_insert_terminator = true;
+              }
+          }
+          if(l_message_insert_terminator) {
+              emc_put('.');
+          }
+          emc_put(EOL);
+      }
       return rc;
 }
 
@@ -598,6 +698,16 @@ int   gateway::get_recv_descriptor() const noexcept
 int   gateway::get_send_descriptor() const noexcept
 {
       return m_send_descriptor;
+}
+
+service* gateway::get_service_ptr(int) noexcept
+{
+      return nullptr;
+}
+
+int   gateway::get_service_count() const noexcept
+{
+      return 0;
 }
 
 void  gateway::feed() noexcept
@@ -699,7 +809,8 @@ void  gateway::feed() noexcept
                                           if(*l_feed_base == emc_tag_sync) {
                                               emc_send_sync();
                                           } else
-                                          if(*l_feed_base == emc_tag_help) {
+                                          if((*l_feed_base == emc_tag_help) &&
+                                              ((*l_feed_base == SPC) || (*l_feed_base == EOS)))  {
                                               emc_send_help();
                                           } else
                                               emc_capture_request(l_feed_base, l_feed_iter - l_feed_base);
