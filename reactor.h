@@ -38,7 +38,7 @@
 namespace emc {
 
 /* reactor
- * integrated server base
+ * integrated base class for an EMC server
 */
 class reactor
 {
@@ -59,15 +59,15 @@ class reactor
   bool m_resume_bit;
 
   private:
-          bool  ctl_desc_attach(int) noexcept;
-          bool  ctl_desc_remove(int) noexcept;
-          host* ctl_interface_find(int) noexcept;
-          session* ctl_session_spawn(int, host*) noexcept;
-          bool  ctl_session_attach(int, session*) noexcept;
-          void  ctl_session_drop(int) noexcept;
-          session* ctl_session_find(int) noexcept;
-          void  ctl_session_feed(session*) noexcept;
-          void  ctl_session_suspend(int, session*) noexcept;
+          bool      ctl_desc_attach(int) noexcept;
+          bool      ctl_desc_remove(int) noexcept;
+          host*     ctl_interface_find(int) noexcept;
+          session*  ctl_session_spawn(int, host*) noexcept;
+          bool      ctl_session_attach(int, session*) noexcept;
+          void      ctl_session_drop(int) noexcept;
+          session*  ctl_session_find(int) noexcept;
+          void      ctl_session_feed(session*) noexcept;
+          void      ctl_session_suspend(int, session*) noexcept;
 
   protected:
   virtual session*  emc_spawn_session(host*, int) noexcept;

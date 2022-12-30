@@ -23,6 +23,8 @@
 **/
 #include <sys.h>
 
+// TODO: Remove duplicate with sys::command
+
 namespace emc {
 
 class arg;
