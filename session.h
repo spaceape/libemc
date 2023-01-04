@@ -57,6 +57,8 @@ class session: public gateway
   static constexpr unsigned int type_local = bit_local;
   static constexpr unsigned int type_remote = bit_local;
   friend class service;
+  friend class reactor;
+
   public:
           session(unsigned int) noexcept;
           session(unsigned int, int, int) noexcept;

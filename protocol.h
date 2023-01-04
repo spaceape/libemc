@@ -25,6 +25,7 @@
 
 namespace emc {
 
+constexpr char emc_tag_escape = '/';
 constexpr char emc_tag_request = '?';
 constexpr char emc_tag_help = '?';
 constexpr char emc_tag_response = ']';

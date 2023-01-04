@@ -34,7 +34,7 @@ static constexpr char msg_ready[] = "READY";
 /* err_parse
    request could not be parsed 
 */
-static constexpr int  err_parse = -128;
+static constexpr int  err_parse = -127;
 static constexpr char msg_parse[] = "INVALID REQUEST";
 
 /* err_bad_request
@@ -56,6 +56,10 @@ static constexpr char msg_no_request[] = "COMMAND NOT FOUND";
 static constexpr int  err_no_response = -1;
 static constexpr char msg_no_response[] = "COMMAND NOT FOUND";
 
+/* err_fail
+*/
+static constexpr int  err_fail = -128;
+static constexpr char msg_fail[] = "INTERNAL ERROR";
 
 /* bit_next
    flag returned by monitors for requests that are allowed to be handled by multiple entities

@@ -24,28 +24,25 @@
 namespace emc {
 
       timer::timer(bool enable) noexcept:
-      timer(std::chrono::steady_clock::now(), enable)
+      timer(0.0f, enable)
 {
 }
 
-      timer::timer(const sys::time_t& time, bool enable) noexcept:
-      m_time_p0(time),
-      m_time_p1(time),
+      timer::timer(float value, bool enable) noexcept:
+      m_value(value),
       m_enable(enable)
 {
 }
 
       timer::timer(const timer& copy) noexcept:
-      m_time_p0(copy.m_time_p0),
-      m_time_p1(copy.m_time_p1),
+      m_value(copy.m_value),
       m_enable(copy.m_enable)
 {
 }
 
       timer::timer(timer&& copy) noexcept:
-      m_time_p0(std::move(copy.m_time_p0)),
-      m_time_p1(std::move(copy.m_time_p1)),
-      m_enable(std::move(copy.m_enable))
+      m_value(copy.m_value),
+      m_enable(copy.m_enable)
 {
 }
 
@@ -55,12 +52,12 @@ namespace emc {
 
 float timer::get() const noexcept
 {
-      return sys::get_delay(m_time_p1 - m_time_p0);
+      return m_value;
 }
 
 float timer::compare(float interval) const noexcept
 {
-      return interval - get();
+      return interval - m_value;
 }
 
 bool  timer::test(float interval) const noexcept
@@ -76,7 +73,7 @@ void  timer::resume(bool value) noexcept
       if(m_enable != value) {
           m_enable = value;
           if(m_enable == false) {
-              m_time_p0 = m_time_p1;
+              reset();
           }
       }
 }
@@ -86,30 +83,16 @@ void  timer::suspend() noexcept
       resume(false);
 }
 
-void  timer::update() noexcept
+void  timer::update(float dt) noexcept
 {
       if(m_enable) {
-          m_time_p1 = std::chrono::steady_clock::now();
-      }
-}
-
-void  timer::update(const sys::time_t& time) noexcept
-{
-      if(m_enable) {
-          m_time_p1 = time;
-      }
-}
-
-void  timer::update(const sys::delay_t& dt) noexcept
-{
-      if(m_enable) {
-          m_time_p1 += std::chrono::duration_cast<std::chrono::nanoseconds>(dt);
+          m_value += dt;
       }
 }
 
 void  timer::reset() noexcept
 {
-      m_time_p0 = m_time_p1;
+      m_value = 0.0f;
 }
 
       timer::operator bool() const noexcept
@@ -119,17 +102,15 @@ void  timer::reset() noexcept
 
 timer& timer::operator=(const timer& rhs) noexcept
 {
-      m_time_p0 = rhs.m_time_p0;
-      m_time_p1 = rhs.m_time_p1;
-      m_enable  = rhs.m_enable;
+      m_value = rhs.m_value;
+      m_enable = rhs.m_enable;
       return *this;
 }
 
 timer& timer::operator=(timer&& rhs) noexcept
 {
-      m_time_p0 = std::move(rhs.m_time_p0);
-      m_time_p1 = std::move(rhs.m_time_p1);
-      m_enable  = std::move(rhs.m_enable);
+      m_value = rhs.m_value;
+      m_enable = rhs.m_enable;
       return *this;
 }
 

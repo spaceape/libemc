@@ -104,7 +104,7 @@ class gateway
           void  emc_emit(char) noexcept;
           void  emc_emit(int, const char*) noexcept;
           char* emc_reserve(int) noexcept;
-          void  emc_capture_request(char*, int) noexcept;
+          int   emc_capture_request(char*, int) noexcept;
           void  emc_capture_response(char*, int) noexcept;
           void  emc_capture_comment(char*, int) noexcept;
           void  emc_capture_packet(int, int, std::uint8_t*) noexcept;
@@ -118,10 +118,10 @@ class gateway
   static  constexpr unsigned int ssf_disable = 0u;
     
   protected:
-          int   get_send_mtu() const noexcept;
-          bool  set_send_mtu(int) noexcept;
-          bool  set_recv_descriptor(int, int = 0) noexcept;
-          bool  set_send_descriptor(int, int = 0) noexcept;
+          int   emc_get_send_mtu() const noexcept;
+          bool  emc_set_send_mtu(int) noexcept;
+          bool  emc_set_recv_descriptor(int, int = 0) noexcept;
+          bool  emc_set_send_descriptor(int, int = 0) noexcept;
 
           void  emc_listen() noexcept;
           void  emc_connect() noexcept;
@@ -184,8 +184,9 @@ class gateway
   virtual void  emc_dispatch_comment(const char*, int) noexcept;
   virtual void  emc_dispatch_packet(int, int, std::uint8_t*) noexcept;
   virtual void  emc_dispatch_disconnect() noexcept;
-  virtual void  emc_sync(const sys::time_t&) noexcept;
+  virtual void  emc_sync(float) noexcept;
 
+          int   emc_feed_request(const char*, int) noexcept;
           void  emc_disconnect() noexcept;
 
   public:
@@ -204,7 +205,7 @@ class gateway
           void     feed() noexcept;
           void     flush() noexcept;
           void     reset() noexcept;
-          void     sync(const sys::time_t&) noexcept;
+          void     sync(float) noexcept;
 
           gateway& operator=(const gateway&) noexcept = delete;
           gateway& operator=(gateway&&) noexcept = delete;

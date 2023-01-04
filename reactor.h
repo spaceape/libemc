@@ -49,6 +49,7 @@ class reactor
   mmi::flat_list<host>         m_interface_list;
   mmi::flat_map<int, host*>    m_interface_by_descriptor;
   mmi::flat_map<int, session*> m_session_by_descriptor;
+  sys::time_t                  m_sync_time;
 
   int  m_interface_count;
   int  m_interface_limit;
@@ -72,10 +73,11 @@ class reactor
   protected:
   virtual session*  emc_spawn_session(host*, int) noexcept;
   virtual bool      emc_suspend_session(session*) noexcept;
-  virtual void      emc_sync(const sys::time_t&) noexcept;
+  virtual void      emc_sync(float) noexcept;
 
   protected:
           bool      emc_attach_session(session*) noexcept;
+          int       ctl_inject_session_request(session*, const char*, int) noexcept;
           void      emc_detach_session(session*) noexcept;
           host*     emc_attach_interface(host::type, const std::string&) noexcept;
           void      emc_detach_interface(host*) noexcept;

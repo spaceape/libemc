@@ -29,13 +29,12 @@ namespace emc {
 
 class timer
 {
-  sys::time_t  m_time_p0;
-  sys::time_t  m_time_p1;
+  float   m_value;
   bool    m_enable;
 
   public:
           timer(bool = true) noexcept;
-          timer(const sys::time_t&, bool = true) noexcept;
+          timer(float, bool = true) noexcept;
           timer(const timer&) noexcept;
           timer(timer&&) noexcept;
           ~timer();
@@ -44,9 +43,7 @@ class timer
           bool   test(float) const noexcept;
           void   resume(bool = true) noexcept;
           void   suspend() noexcept;
-          void   update() noexcept;
-          void   update(const sys::time_t&) noexcept;
-          void   update(const sys::delay_t&) noexcept;
+          void   update(float) noexcept;
           void   reset() noexcept;
                  operator bool() const noexcept;
           timer& operator=(const timer&) noexcept;

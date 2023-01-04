@@ -22,7 +22,6 @@
 #include "reactor.h"
 #include <cstdlib>
 #include <cstring>
-#include "device.h"
 #include <memory.h>
 #include <pxi.h>
 #include <sys/epoll.h>
@@ -46,6 +45,7 @@ namespace emc {
       m_poll_count(0),
       m_interface_by_descriptor(resource::get_default(), global::cache_small_max, false, true),
       m_session_by_descriptor(resource::get_default(), global::cache_small_max, false, true),
+      m_sync_time(std::chrono::steady_clock::now()),
       m_interface_count(0),
       m_interface_limit(s_interface_limit_default),
       m_session_count(0),
@@ -184,7 +184,7 @@ bool  reactor::emc_suspend_session(session*) noexcept
       return true;
 }
 
-void  reactor::emc_sync(const sys::time_t&) noexcept
+void  reactor::emc_sync(float) noexcept
 {
 }
 
@@ -195,6 +195,11 @@ bool  reactor::emc_attach_session(session* session_ptr) noexcept
           return ctl_session_attach(l_id, session_ptr);
       }
       return false;
+}
+
+int   reactor::ctl_inject_session_request(session* session_ptr, const char* request, int length) noexcept
+{
+      return session_ptr->emc_feed_request(request, length);
 }
 
 void  reactor::emc_detach_session(session* session_ptr) noexcept
@@ -279,12 +284,14 @@ bool  reactor::suspend() noexcept
 
 void  reactor::sync(const sys::time_t& time, const sys::delay_t& wait) noexcept
 {
-      useconds_t  l_wait_us = std::chrono::duration_cast<std::chrono::microseconds>(wait).count();
       epoll_event l_event_list[s_poll_event_max];
+
       timespec    l_wait_time;
+      useconds_t  l_wait_us = std::chrono::duration_cast<std::chrono::microseconds>(wait).count();
       l_wait_time.tv_sec = l_wait_us / pxi::usps;
       l_wait_time.tv_nsec =(l_wait_us % pxi::usps) * pxi::nspus;
       if(l_wait_us > 0) {
+          auto  l_dt = std::chrono::duration<float>(time - m_sync_time);
           // poll all known descriptors for signs of activity and handle incoming events
           if(int
               l_poll_rc = epoll_pwait2(
@@ -346,14 +353,16 @@ void  reactor::sync(const sys::time_t& time, const sys::delay_t& wait) noexcept
           // call the `sync()` method on all attached sessions
           if(true) {
               for(auto& i_session_entry : m_session_by_descriptor) {
-                  i_session_entry.value->sync(time);
+                  session* p_session_entry = i_session_entry.value;
+                  p_session_entry->sync(l_dt.count());
               }
-              emc_sync(time);
+              emc_sync(l_dt.count());
           }
-          // something happened (poll wait, poll events processed), measure how long it took
+          // something happened (poll wait, poll events processed), measure how long it took and recompute the
+          // wait time
           auto  l_time = std::chrono::steady_clock::now();
-          auto  l_dt   = std::chrono::duration<float>(l_time - time);
-          auto  l_wait = wait - l_dt;
+          auto  l_elapsed = std::chrono::duration<float>(l_time - time);
+          auto  l_wait = wait - l_elapsed;
           if(l_wait.count() > 0.0f) {
               useconds_t l_sleep_us = std::chrono::duration_cast<std::chrono::microseconds>(l_wait).count();
               if(l_sleep_us > 0) {
@@ -362,6 +371,7 @@ void  reactor::sync(const sys::time_t& time, const sys::delay_t& wait) noexcept
                   l_wait_us = 0;
           } else
               l_wait_us = 0;
+          m_sync_time = time;
       }
       if(l_wait_us > 0) {
           usleep(l_wait_us);

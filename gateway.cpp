@@ -110,8 +110,8 @@ static_assert(message_ping_time <
       gateway::gateway(int rd, int sd) noexcept:
       gateway()
 {
-      set_recv_descriptor(rd);
-      set_send_descriptor(sd);
+      emc_set_recv_descriptor(rd);
+      emc_set_send_descriptor(sd);
 }
     
       gateway::~gateway()
@@ -191,7 +191,7 @@ char* gateway::emc_reserve(int size) noexcept
 /* emc_capture_request()
    handle incoming request
 */
-void  gateway::emc_capture_request(char* message, int length) noexcept
+int   gateway::emc_capture_request(char* message, int length) noexcept
 {
       if(m_dispatch_request) {
           emc_dispatch_request(message, length);
@@ -227,6 +227,7 @@ void  gateway::emc_capture_request(char* message, int length) noexcept
           }
           l_rc = emc_send_error(l_rc);
       }
+      return l_rc;
 }
 
 int   gateway::emc_process_request(int, command&) noexcept
@@ -278,7 +279,7 @@ void  gateway::emc_capture_response(char* message, int length) noexcept
                                           (l_mtu <= s_mtu_max)) {
                                             std::strncpy(m_gate_name, l_name, emc_name_size);
                                             std::strncpy(m_gate_info, l_info, emc_info_size);
-                                            set_send_mtu(l_mtu);
+                                            emc_set_send_mtu(l_mtu);
                                             m_trip_ctr.suspend();
                                             m_trip_ctr.reset();
                                       } else
@@ -398,12 +399,12 @@ void  gateway::emc_trip() noexcept
       emc_disconnect();
 }
 
-int   gateway::get_send_mtu() const noexcept
+int   gateway::emc_get_send_mtu() const noexcept
 {
       return m_send_mtu;
 }
 
-bool  gateway::set_send_mtu(int mtu) noexcept
+bool  gateway::emc_set_send_mtu(int mtu) noexcept
 {
       if(mtu >= s_mtu_min) {
           if(mtu <= s_mtu_max) {
@@ -414,7 +415,7 @@ bool  gateway::set_send_mtu(int mtu) noexcept
       return false;
 }
 
-bool  gateway::set_recv_descriptor(int id, int flags) noexcept
+bool  gateway::emc_set_recv_descriptor(int id, int flags) noexcept
 {
       if(m_recv_descriptor != id) {
           if(m_recv_descriptor != undef) {
@@ -433,7 +434,7 @@ bool  gateway::set_recv_descriptor(int id, int flags) noexcept
       return m_recv_descriptor == id;
 }
 
-bool  gateway::set_send_descriptor(int id, int flags) noexcept
+bool  gateway::emc_set_send_descriptor(int id, int flags) noexcept
 {
       if(m_send_descriptor != id) {
           if(m_send_descriptor != undef) {
@@ -664,8 +665,39 @@ void  gateway::emc_dispatch_disconnect() noexcept
 {
 }
 
-void  gateway::emc_sync(const sys::time_t&) noexcept
+void  gateway::emc_sync(float) noexcept
 {
+}
+
+int   gateway::emc_feed_request(const char* request, int length) noexcept
+{
+      if(request == nullptr) {
+          return err_fail;
+      }
+      if(request[0] == 0) {
+          return err_fail;
+      }
+      if(length <= 0) {
+          return err_fail;
+      }
+      // make room to copy the request into the unused region of the receive buffer
+      char* l_copy_ptr;
+      int   l_copy_size = m_recv_used + length;
+      int   l_rc;
+      if(l_copy_size > m_recv_size) {
+          auto l_recv_ptr = reinterpret_cast<char*>(::realloc(m_recv_data, l_copy_size));
+          if(l_recv_ptr == nullptr) {
+              return err_fail;
+          }
+          m_recv_data = l_recv_ptr;
+          m_recv_size = l_copy_size;
+          m_mem_size  = m_recv_size + m_send_size;
+      }
+      // copy the request into the unused region of the receive buffer      
+      l_copy_ptr = m_recv_data + m_recv_used;
+      std::memcpy(l_copy_ptr, request, length + 1);
+      l_rc = emc_capture_request(l_copy_ptr, length);
+      return l_rc;
 }
 
 void  gateway::emc_disconnect() noexcept
@@ -947,27 +979,27 @@ void  gateway::reset() noexcept
       emc_trip();
 }
 
-void  gateway::sync(const sys::time_t& time) noexcept
+void  gateway::sync(float dt) noexcept
 {
-      m_ping_ctr.update(time);
+      m_ping_ctr.update(dt);
       if(m_ping_ctr.test(m_gate_ping_time)) {
           emc_send_ping_request();
           m_ping_ctr.reset();
       }
-      m_info_ctr.update(time);
+      m_info_ctr.update(dt);
       if(m_info_ctr.test(m_gate_info_time)) {
           emc_send_info_request();
           m_info_ctr.reset();
       }
       // update the drop timer and check if it is time to drop the incomplete message in the
       // queue, if present
-      m_drop_ctr.update(time);
+      m_drop_ctr.update(dt);
       if(m_drop_ctr.test(m_gate_drop_time)) {
           emc_drop();
           m_drop_ctr.reset();
       }
       // update the trip timer
-      m_trip_ctr.update(time);
+      m_trip_ctr.update(dt);
       if(m_trip_ctr.test(m_gate_trip_time)) {
           m_active_bit = false;
           m_healty_bit = false;
@@ -975,7 +1007,7 @@ void  gateway::sync(const sys::time_t& time) noexcept
           m_trip_ctr.reset();
       }
       // ring the `sync()` virtual member
-      emc_sync(time);
+      emc_sync(dt);
 }
 
 /*namespace emc*/ }
