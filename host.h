@@ -25,8 +25,6 @@
 
 namespace emc {
 
-constexpr int host_address_length = 256;
-
 /* host
    class responsible for setting up and managing an instance of a receiving endpoint connected to the EMC interface
 */
@@ -39,16 +37,17 @@ class host
   enum class type
   {
     none,
-    file,         // host reffers to a filesystem entry
-    stdio,        // host reffers to stdin
-    tty,          // host reffers serial port
-    socket,       // host reffers to a unix socket
-    net_address,  // host reffers to a network IP address
-    net_name      // host reffers to a network host name
+    file,               // host reffers to a filesystem entry
+    stdio,              // host reffers to stdin
+    tty,                // host reffers serial port
+    socket,             // host reffers to a unix socket
+    net_ipv4_address,   // host reffers to a network IPv4 address
+    net_ipv6_address,   // host reffers to a network IPv6 address
+    net_name            // host reffers to a network host name
   };
 
   /* host_mode
-     records the underlying protocol a gateway may be using
+     records the underlying protocol a host may be using
   */
   enum class mode
   {
@@ -59,15 +58,19 @@ class host
     http
   };
 
+  static constexpr unsigned int port_undef = 0;
+
   private:
-  type        m_host_type;
-  std::string m_host_address;
-  int         m_recv_descriptor;
-  bool        m_connect_bit;
-  bool        m_ready_bit;
+  type          m_host_type;
+  std::string   m_host_address;
+  unsigned int  m_host_port;
+  int           m_rd;
+  int           m_sd;
+  bool          m_ready_bit;
 
   public:
-          host(type, const std::string&) noexcept;
+          host() noexcept;
+          host(type, const char*, unsigned int = port_undef) noexcept;
           host(const host&) noexcept = delete;
           host(host&&) noexcept;
           ~host();
@@ -75,7 +78,10 @@ class host
           bool    has_descriptor(int) const noexcept;
           int     get_descriptor() const noexcept;
           bool    get_ready() const noexcept;
+          void    dispose(bool = true) noexcept;
+          void    release() noexcept;
                   operator int() const noexcept;
+                  operator bool() const noexcept;
           host&   operator=(const host&) noexcept = delete;
           host&   operator=(host&&) noexcept;
 };

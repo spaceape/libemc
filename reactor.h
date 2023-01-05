@@ -27,7 +27,6 @@
 #include "gateway.h"
 #include <sys.h>
 #include <memory>
-#include <string>
 #include <mmi.h>
 #include <mmi/resource.h>
 #include <mmi/bank.h>
@@ -42,8 +41,8 @@ namespace emc {
 */
 class reactor
 {
-  int  m_poll_descriptor;
-  int  m_poll_count;
+  int     m_poll_descriptor;
+  int     m_poll_count;
 
   private:
   mmi::flat_list<host>         m_interface_list;
@@ -51,13 +50,13 @@ class reactor
   mmi::flat_map<int, session*> m_session_by_descriptor;
   sys::time_t                  m_sync_time;
 
-  int  m_interface_count;
-  int  m_interface_limit;
-  int  m_session_count;
-  int  m_session_limit;
+  int     m_interface_count;
+  int     m_interface_limit;
+  int     m_session_count;
+  int     m_session_limit;
 
-  bool m_ready_bit;
-  bool m_resume_bit;
+  bool    m_ready_bit;
+  bool    m_resume_bit;
 
   private:
           bool      ctl_desc_attach(int) noexcept;
@@ -79,7 +78,7 @@ class reactor
           bool      emc_attach_session(session*) noexcept;
           int       ctl_inject_session_request(session*, const char*, int) noexcept;
           void      emc_detach_session(session*) noexcept;
-          host*     emc_attach_interface(host::type, const std::string&) noexcept;
+          host*     emc_attach_interface(host::type, const char*, unsigned int = host::port_undef) noexcept;
           void      emc_detach_interface(host*) noexcept;
 
   public:
@@ -87,13 +86,13 @@ class reactor
           reactor(const reactor&) noexcept = delete;
           reactor(reactor&&) noexcept = delete;
   virtual ~reactor();
-          bool     resume() noexcept;
-  virtual const char* get_machine_name() const noexcept;
-  virtual const char* get_machine_type() const noexcept;
-          bool     suspend() noexcept;
-          void     sync(const sys::time_t&, const sys::delay_t&) noexcept;
-          reactor& operator=(const reactor&) noexcept = delete;
-          reactor& operator=(reactor&&) noexcept = delete;
+          bool      resume() noexcept;
+  virtual const char*   get_machine_name() const noexcept;
+  virtual const char*   get_machine_type() const noexcept;
+          bool      suspend() noexcept;
+          void      sync(const sys::time_t&, const sys::delay_t&) noexcept;
+          reactor&  operator=(const reactor&) noexcept = delete;
+          reactor&  operator=(reactor&&) noexcept = delete;
 };
 
 /*namespace emc*/ }

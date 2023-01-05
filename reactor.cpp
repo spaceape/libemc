@@ -206,7 +206,7 @@ void  reactor::emc_detach_session(session* session_ptr) noexcept
 {
 }
 
-host* reactor::emc_attach_interface(host::type type, const std::string& address) noexcept
+host* reactor::emc_attach_interface(host::type type, const char* address, unsigned int port) noexcept
 {
       if(m_poll_count < s_poll_count_max) {
           if(m_interface_count < m_interface_limit) {
@@ -220,7 +220,7 @@ host* reactor::emc_attach_interface(host::type type, const std::string& address)
               }
               // save host into the internal interface lists
               if(auto&
-                  l_interface_host = m_interface_list.emplace_back(type, address);
+                  l_interface_host = m_interface_list.emplace_back(type, address, port);
                   l_interface_host.get_ready()) {
                   int  l_interface_descriptor = l_interface_host.get_descriptor();
                   bool l_interface_attach     = ctl_desc_attach(l_interface_descriptor);
@@ -313,7 +313,8 @@ void  reactor::sync(const sys::time_t& time, const sys::delay_t& wait) noexcept
                           l_interface = ctl_interface_find(l_event_list[i_event].data.fd);
                           l_interface != nullptr) {
                           if(l_interface->has_type(host::type::socket) ||
-                              l_interface->has_type(host::type::net_address) ||
+                              l_interface->has_type(host::type::net_ipv4_address) ||
+                              l_interface->has_type(host::type::net_ipv6_address) ||
                               l_interface->has_type(host::type::net_name)) {
                               if(m_resume_bit) {
                                   ctl_session_spawn(l_event_list[i_event].data.fd, l_interface);
