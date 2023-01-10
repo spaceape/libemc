@@ -43,8 +43,8 @@ namespace emc {
       reactor::reactor() noexcept:
       m_poll_descriptor(undef),
       m_poll_count(0),
-      m_interface_by_descriptor(resource::get_default(), global::cache_small_max, false, true),
-      m_session_by_descriptor(resource::get_default(), global::cache_small_max, false, true),
+      m_interface_descriptor_map(resource::get_default(), global::cache_small_max, false, true),
+      m_session_descriptor_map(resource::get_default(), global::cache_small_max, false, true),
       m_sync_time(std::chrono::steady_clock::now()),
       m_interface_count(0),
       m_interface_limit(s_interface_limit_default),
@@ -66,14 +66,14 @@ namespace emc {
       close(m_poll_descriptor);
 }
 
-bool  reactor::ctl_desc_attach(int id) noexcept
+bool  reactor::ctl_poll_attach(int di) noexcept
 {
       struct epoll_event l_event_cb;
-      if(id >= 0) {
+      if(di >= 0) {
           if(m_poll_count < s_poll_count_max) {
               l_event_cb.events  = EPOLLIN | EPOLLHUP | EPOLLERR;
-              l_event_cb.data.fd = id;
-              if(epoll_ctl(m_poll_descriptor, EPOLL_CTL_ADD, id, std::addressof(l_event_cb)) == 0) {
+              l_event_cb.data.fd = di;
+              if(epoll_ctl(m_poll_descriptor, EPOLL_CTL_ADD, di, std::addressof(l_event_cb)) == 0) {
                   m_poll_count++;
                   return true;
               }
@@ -82,11 +82,11 @@ bool  reactor::ctl_desc_attach(int id) noexcept
       return false;
 }
 
-bool  reactor::ctl_desc_remove(int id) noexcept
+bool  reactor::ctl_poll_detach(int di) noexcept
 {
-      if(id > 0) {
+      if(di > 0) {
           if(m_poll_count > 0) {
-              if(epoll_ctl(m_poll_descriptor, EPOLL_CTL_DEL, id, nullptr) == 0) {
+              if(epoll_ctl(m_poll_descriptor, EPOLL_CTL_DEL, di, nullptr) == 0) {
                   m_poll_count--;
                   return true;
               }
@@ -97,8 +97,8 @@ bool  reactor::ctl_desc_remove(int id) noexcept
 
 host* reactor::ctl_interface_find(int id) noexcept
 {
-      auto i_interface = m_interface_by_descriptor.find(id);
-      if(i_interface != m_interface_by_descriptor.end()) {
+      auto i_interface = m_interface_descriptor_map.find(id);
+      if(i_interface != m_interface_descriptor_map.end()) {
           return i_interface->value;
       }
       return nullptr;
@@ -118,7 +118,7 @@ session* reactor::ctl_session_spawn(int id, host* interface) noexcept
                       return l_session_ptr;
                   }
               }
-              ctl_desc_remove(l_accept_descriptor);
+              ctl_poll_detach(l_accept_descriptor);
           }
           close(l_accept_descriptor);
       }
@@ -127,9 +127,9 @@ session* reactor::ctl_session_spawn(int id, host* interface) noexcept
 
 bool  reactor::ctl_session_attach(int id, session* session_ptr) noexcept
 {
-      bool l_session_attach = ctl_desc_attach(id);
+      bool l_session_attach = ctl_poll_attach(id);
       if(l_session_attach) {
-          m_session_by_descriptor.insert(id, session_ptr);
+          m_session_descriptor_map.insert(id, session_ptr);
           m_session_count++;
           return true;
       }
@@ -148,8 +148,8 @@ void  reactor::ctl_session_drop(int id) noexcept
 
 session* reactor::ctl_session_find(int id) noexcept
 {
-      auto i_session = m_session_by_descriptor.find(id);
-      if(i_session != m_session_by_descriptor.end()) {
+      auto i_session = m_session_descriptor_map.find(id);
+      if(i_session != m_session_descriptor_map.end()) {
           return i_session->value;
       }
       return nullptr;
@@ -163,12 +163,12 @@ void  reactor::ctl_session_feed(session* session_ptr) noexcept
 void  reactor::ctl_session_suspend(int id, session* session_ptr) noexcept
 {
       if(auto 
-          l_descriptor_iterator = m_session_by_descriptor.find(id);
-          l_descriptor_iterator != m_session_by_descriptor.end()) {
+          l_descriptor_iterator = m_session_descriptor_map.find(id);
+          l_descriptor_iterator != m_session_descriptor_map.end()) {
           bool l_allow_suspend = emc_suspend_session(session_ptr);
           if(l_allow_suspend) {
-              ctl_desc_remove(session_ptr->get_recv_descriptor());
-              m_session_by_descriptor.remove(l_descriptor_iterator);
+              ctl_poll_detach(session_ptr->get_recv_descriptor());
+              m_session_descriptor_map.remove(l_descriptor_iterator);
               m_session_count--;
           }
       }
@@ -223,9 +223,9 @@ host* reactor::emc_attach_interface(host::type type, const char* address, unsign
                   l_interface_host = m_interface_list.emplace_back(type, address, port);
                   l_interface_host.get_ready()) {
                   int  l_interface_descriptor = l_interface_host.get_descriptor();
-                  bool l_interface_attach     = ctl_desc_attach(l_interface_descriptor);
+                  bool l_interface_attach     = ctl_poll_attach(l_interface_descriptor);
                   if(l_interface_attach) {
-                      m_interface_by_descriptor.insert(l_interface_descriptor, std::addressof(l_interface_host));
+                      m_interface_descriptor_map.insert(l_interface_descriptor, std::addressof(l_interface_host));
                       m_interface_count++;
                       return std::addressof(l_interface_host);
                   }
@@ -241,11 +241,11 @@ void  reactor::emc_detach_interface(host* interface_ptr) noexcept
       if(auto
           l_interface_iterator = m_interface_list.find(interface_ptr);
           l_interface_iterator != m_interface_list.end()) {
-          ctl_desc_remove(interface_ptr->get_descriptor());
+          ctl_poll_detach(interface_ptr->get_descriptor());
           if(auto
-              l_descriptor_iterator = m_interface_by_descriptor.find(interface_ptr->get_descriptor());
-              l_descriptor_iterator != m_interface_by_descriptor.end()) {
-              m_interface_by_descriptor.remove(l_descriptor_iterator);
+              l_descriptor_iterator = m_interface_descriptor_map.find(interface_ptr->get_descriptor());
+              l_descriptor_iterator != m_interface_descriptor_map.end()) {
+              m_interface_descriptor_map.remove(l_descriptor_iterator);
           }
           m_interface_list.erase(l_interface_iterator);
           m_interface_count--;
@@ -353,7 +353,7 @@ void  reactor::sync(const sys::time_t& time, const sys::delay_t& wait) noexcept
           }
           // call the `sync()` method on all attached sessions
           if(true) {
-              for(auto& i_session_entry : m_session_by_descriptor) {
+              for(auto& i_session_entry : m_session_descriptor_map) {
                   session* p_session_entry = i_session_entry.value;
                   p_session_entry->sync(l_dt.count());
               }

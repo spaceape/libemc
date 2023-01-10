@@ -24,11 +24,11 @@
 #include <emc.h>
 #include "protocol.h"
 #include "error.h"
-#include "command.h"
 #include "timer.h"
 #include <atomic>
 #include <sys.h>
 #include <sys/fmt.h>
+#include <sys/argv.h>
 #include <sys/ios.h>
 
 namespace emc {
@@ -82,7 +82,7 @@ class gateway
   int       m_load_min;
   int       m_load_max;
 
-  command   m_args;                     // request/response command line
+  sys::argv m_args;                     // request/response command line
 
   timer     m_ping_ctr;
   timer     m_info_ctr;                 // info timer    
@@ -118,6 +118,8 @@ class gateway
   static  constexpr unsigned int ssf_disable = 0u;
     
   protected:
+          auto  emc_get_gate_name() const noexcept -> const char*;
+          auto  emc_get_gate_info() const noexcept -> const char*;
           int   emc_get_send_mtu() const noexcept;
           bool  emc_set_send_mtu(int) noexcept;
           bool  emc_set_recv_descriptor(int, int = 0) noexcept;
@@ -177,10 +179,11 @@ class gateway
           void  emc_send_raw(const char*, int) noexcept;
           int   emc_send_error(int, const char* = nullptr, ...) noexcept;
 
+  virtual void  emc_dispatch_connect(const char*, const char*, int) noexcept;
   virtual void  emc_dispatch_request(const char*, int) noexcept;
-  virtual int   emc_process_request(int, command&) noexcept;
+  virtual int   emc_process_request(int, const sys::argv&) noexcept;
   virtual void  emc_dispatch_response(const char*, int) noexcept;
-  virtual int   emc_process_response(int, command&) noexcept;
+  virtual int   emc_process_response(int, const sys::argv&) noexcept;
   virtual void  emc_dispatch_comment(const char*, int) noexcept;
   virtual void  emc_dispatch_packet(int, int, std::uint8_t*) noexcept;
   virtual void  emc_dispatch_disconnect() noexcept;

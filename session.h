@@ -40,9 +40,9 @@ class session: public gateway
 
   protected:
   virtual void  emc_dispatch_request(const char*, int) noexcept override;
-  virtual int   emc_process_request(int, command&) noexcept override;
+  virtual int   emc_process_request(int, const sys::argv&) noexcept override;
   virtual void  emc_dispatch_response(const char*, int) noexcept override;
-  virtual int   emc_process_response(int, command&) noexcept override;
+  virtual int   emc_process_response(int, const sys::argv&) noexcept override;
   virtual void  emc_dispatch_comment(const char*, int) noexcept override;
   virtual void  emc_dispatch_packet(int, int, std::uint8_t*) noexcept override;
   virtual void  emc_dispatch_disconnect() noexcept override;

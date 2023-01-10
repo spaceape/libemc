@@ -230,7 +230,7 @@ int   gateway::emc_capture_request(char* message, int length) noexcept
       return l_rc;
 }
 
-int   gateway::emc_process_request(int, command&) noexcept
+int   gateway::emc_process_request(int, const sys::argv&) noexcept
 {
       return err_no_request;
 }
@@ -256,9 +256,9 @@ void  gateway::emc_capture_response(char* message, int length) noexcept
                       case emc_response_info: {
                           if(m_args[1].has_text(emc_protocol_name)) {
                               if(m_args[2].has_text(emc_protocol_version, 0, 3)) {
-                                  char* l_name;
-                                  char* l_info;
-                                  int   l_mtu;
+                                  const char* l_name;
+                                  const char* l_info;
+                                  int         l_mtu;
                                   if(m_args[3].has_text()) {
                                       if(m_args[3].get_size() <= emc_name_size) {
                                           l_name = m_args[3].get_text();
@@ -275,15 +275,17 @@ void  gateway::emc_capture_response(char* message, int length) noexcept
                                       break;
                                   if(m_args[5].has_text()) {
                                       l_mtu = m_args[5].get_dec_int();
+                                      std::strncpy(m_gate_name, l_name, emc_name_size);
+                                      std::strncpy(m_gate_info, l_info, emc_info_size);
                                       if((l_mtu >= s_mtu_min) &&
                                           (l_mtu <= s_mtu_max)) {
-                                            std::strncpy(m_gate_name, l_name, emc_name_size);
-                                            std::strncpy(m_gate_info, l_info, emc_info_size);
-                                            emc_set_send_mtu(l_mtu);
-                                            m_trip_ctr.suspend();
-                                            m_trip_ctr.reset();
-                                      } else
-                                          break;
+                                          emc_set_send_mtu(l_mtu);
+                                      }
+                                      m_info_ctr.suspend();
+                                      m_trip_ctr.suspend();
+                                      m_trip_ctr.reset();
+                                      emc_dispatch_connect(m_gate_name, m_gate_info, l_mtu);
+                                      l_rc = err_okay;
                                   } else
                                       break;
                               }
@@ -347,7 +349,7 @@ void  gateway::emc_capture_response(char* message, int length) noexcept
       }
 }
 
-int   gateway::emc_process_response(int, command&) noexcept
+int   gateway::emc_process_response(int, const sys::argv&) noexcept
 {
       return err_no_response;
 }
@@ -397,6 +399,16 @@ void  gateway::emc_drop() noexcept
 void  gateway::emc_trip() noexcept
 {
       emc_disconnect();
+}
+
+auto  gateway::emc_get_gate_name() const noexcept -> const char*
+{
+      return m_gate_name;
+}
+
+auto  gateway::emc_get_gate_info() const noexcept -> const char*
+{
+      return m_gate_info;
 }
 
 int   gateway::emc_get_send_mtu() const noexcept
@@ -643,6 +655,10 @@ int   gateway::emc_send_error(int rc, const char* message, ...) noexcept
           emc_put(EOL);
       }
       return rc;
+}
+
+void  gateway::emc_dispatch_connect(const char*, const char*, int) noexcept
+{
 }
 
 void  gateway::emc_dispatch_request(const char*, int) noexcept

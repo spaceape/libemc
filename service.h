@@ -33,9 +33,9 @@ class service
   protected:
   virtual bool  emc_dispatch_attach(session*) noexcept;
   virtual void  emc_dispatch_request(session*, const char*, int) noexcept;
-  virtual int   emc_process_request(session*, int, command&) noexcept;
+  virtual int   emc_process_request(session*, int, const sys::argv&) noexcept;
   virtual void  emc_dispatch_response(session*, const char*, int) noexcept;
-  virtual int   emc_process_response(session*, int, command&) noexcept;
+  virtual int   emc_process_response(session*, int, const sys::argv&) noexcept;
   virtual void  emc_dispatch_comment(session*, const char*, int) noexcept;
   virtual void  emc_dispatch_packet(session*, int, int, std::uint8_t*) noexcept;
   virtual void  emc_dispatch_detach(session*) noexcept;

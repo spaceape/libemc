@@ -29,7 +29,6 @@
 #include <memory>
 #include <mmi.h>
 #include <mmi/resource.h>
-#include <mmi/bank.h>
 #include <mmi/flat_list.h>
 #include <mmi/flat_map.h>
 #include "session.h"
@@ -46,8 +45,8 @@ class reactor
 
   private:
   mmi::flat_list<host>         m_interface_list;
-  mmi::flat_map<int, host*>    m_interface_by_descriptor;
-  mmi::flat_map<int, session*> m_session_by_descriptor;
+  mmi::flat_map<int, host*>    m_interface_descriptor_map;
+  mmi::flat_map<int, session*> m_session_descriptor_map;
   sys::time_t                  m_sync_time;
 
   int     m_interface_count;
@@ -59,8 +58,8 @@ class reactor
   bool    m_resume_bit;
 
   private:
-          bool      ctl_desc_attach(int) noexcept;
-          bool      ctl_desc_remove(int) noexcept;
+          bool      ctl_poll_attach(int) noexcept;
+          bool      ctl_poll_detach(int) noexcept;
           host*     ctl_interface_find(int) noexcept;
           session*  ctl_session_spawn(int, host*) noexcept;
           bool      ctl_session_attach(int, session*) noexcept;

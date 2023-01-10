@@ -40,7 +40,7 @@ void  service::emc_dispatch_request(session*, const char*, int) noexcept
 {
 }
 
-int   service::emc_process_request(session*, int, command&) noexcept
+int   service::emc_process_request(session*, int, const sys::argv&) noexcept
 {
       return err_no_request;
 }
@@ -49,7 +49,7 @@ void  service::emc_dispatch_response(session*, const char*, int) noexcept
 {
 }
 
-int   service::emc_process_response(session*, int, command&) noexcept
+int   service::emc_process_response(session*, int, const sys::argv&) noexcept
 {
       return err_no_response;
 }

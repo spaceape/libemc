@@ -23,11 +23,11 @@ include_directories(
 set(EMC_SDK_DIR ${HOST_SDK_DIR}/${NAME})
 
 set(inc
-  host.h gateway.h reactor.h monitor.h session.h
+  host.h timer.h monitor.h session.h service.h gateway.h reactor.h
 )
 
 set(srcs
-  host.cpp command.cpp timer.cpp monitor.cpp session.cpp service.cpp
+  host.cpp timer.cpp monitor.cpp session.cpp service.cpp
   gateway.cpp
   reactor.cpp
 )

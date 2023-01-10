@@ -64,7 +64,7 @@ void  session::emc_dispatch_request(const char* message, int length) noexcept
       }
 }
 
-int   session::emc_process_request(int argc, command& args) noexcept
+int   session::emc_process_request(int argc, const sys::argv& args) noexcept
 {
       int l_grc = err_no_request;
       for(service* i_service : m_service_list) {
@@ -87,7 +87,7 @@ void  session::emc_dispatch_response(const char* message, int length) noexcept
       }
 }
 
-int   session::emc_process_response(int argc, command& args) noexcept
+int   session::emc_process_response(int argc, const sys::argv& args) noexcept
 {
       int l_grc = err_no_request;
       for(service* i_service : m_service_list) {
