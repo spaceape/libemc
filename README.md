@@ -1,3 +1,6 @@
+EMC
+===
+
 # 1. Description
 EMC is a support library that encapsulates a lightweight protocol for communication between devices.
 
