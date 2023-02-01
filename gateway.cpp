@@ -718,11 +718,13 @@ int   gateway::emc_feed_request(const char* request, int length) noexcept
 
 void  gateway::emc_disconnect() noexcept
 {
+      if(m_active_bit) {
+          emc_dispatch_disconnect();
+      }
       m_host_role = false;
       m_user_role = false;
       m_healty_bit = false;
       m_active_bit = false;
-      emc_dispatch_disconnect();
       m_ping_ctr.suspend();
       m_info_ctr.suspend();
       m_drop_ctr.suspend();
