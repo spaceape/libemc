@@ -11,29 +11,87 @@ communication channel. EMC is agnostic of whethere is one, more or no devices ac
 
 ## 2.1. Protocol
 
-### 2.1.1. Protocol states
+### 2.1.1. Query format
+```
+  RQID := [A-Za-z?]+      ; request identifier
+  RSID := [A-Za-z0-9]+    ; response identifier
+  SPC  := [\s\t]+
+  EOL  := '\r' '\n'
+```
 
-### 2.1.1. Services
+### 2.1.2. Protocol states
 
-### 2.1.2. Standard Requests
+### 2.1.3. Standard Requests
 
-### 2.1.3. Standard Events
+```
+  REQUEST := '?' RQID ... EOL
+```
+
+- '!' - the help command
+- '@' - the sync command
+- 'i' - the info request
+- 'g' - the ping request
+- 'z' - the bye request
+
+### 2.1.4. Standard Events
 
 ?p+ support_name
 ?p- support_name
 
-### 2.1.4. Standard Triggers and Responses
+### 2.1.5. Standard Triggers and Responses
+
+```
+  RESPONSE := ']' RSID ... EOL
+```
 
 ]i ...
 ]s+ svc_name
 ]s- svc_name
 ]0  ready
 
-### 2.1.5. Channels
+### 'i' - the info response
+```
+  PROTOCOL := [0-9a-z_-]+
+  DECIMAL  := [0-9]
+  VERSION  := DECIMAL '.' DECIMAL DECIMAL
+  NAME     := [0-9A-Za-z_-]{1..23}
+  TYPE     := [0-9A-Za-z_-]{1..7}
+  ARCHITECTURE := IDENT
+  BITS     := [0-9]+
+  ORDER    := "le" | "be"
+  MTU      := [0-9A-Fa-f]+
 
-## 2.x. Message flows
+  RESPONSE := ']' 'i' SPC PROTOCOL SPC 'v' VERSION SPC NAME SPC TYPE SPC ARCHITECTURE '_' BITS '_' ORDER SPC MTU EOL
+```
+### 's' - the support response
+```
+  SERVICE  := [A-Za-z_][0-9A-Za-z_]*
+  RESPONSE := ']' 's' SPC {[+-]SERVICE}* EOL
+```
+### 'g' - the 'pong' response
+```
+  RESPONSE := ']' 'g' SPC XXXXXXXX EOL
+```
 
-### 2.x.1. The Sync sequence
+### '0' - OK response
+
+### 'e' - the error response
+
+### 'z' - the bye response
+
+### 2.1.6. Services
+
+### 2.1.7. Channels
+```
+  HEX := [0-9A-Fa-f]
+  SIZE := HEX{3}
+  RESPONSE := [\x80-\xfe] SIZE DATA{SIZE} EOL
+```
+  CHANNEL = EOF - C
+
+## 2.2. Message flows
+
+### 2.2.1. The Sync sequence
 ```
 < INFO
 < + <service_0> <properties>...
@@ -42,7 +100,7 @@ communication channel. EMC is agnostic of whethere is one, more or no devices ac
 < + <service_N> <properties>...
 < READY
 ```
-### 2.x.2. 
+### 2.2.2. 
 
 # 3. API
 
