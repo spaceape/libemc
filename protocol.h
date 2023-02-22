@@ -40,8 +40,8 @@ constexpr char emc_response_okay = '0';
 constexpr char emc_response_bye = 'z';
 constexpr char emc_packet_header_size = 4;  // size of a packet header: 1 byte denoting the channel + 3 for size
 
-constexpr char emc_service_enable_tag = '+';
-constexpr char emc_service_disable_tag = '-';
+constexpr char emc_enable_tag = '+';
+constexpr char emc_disable_tag = '-';
 
 constexpr char emc_protocol_name[] = "EMC";
 constexpr char emc_protocol_version[] = "1.0";

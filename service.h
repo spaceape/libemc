@@ -23,13 +23,14 @@
 **/
 #include "emc.h"
 #include "protocol.h"
-#include "feature.h"
 #include "gateway.h"
 
 namespace emc {
 
 class service
 {
+  const char*   m_name;
+  
   protected:
   virtual bool  emc_dispatch_attach(session*) noexcept;
   virtual void  emc_dispatch_request(session*, const char*, int) noexcept;
@@ -42,13 +43,11 @@ class service
 
   friend class session;
   public:
-          service() noexcept;
+          service(const char*) noexcept;
           service(const service&) noexcept = delete;
           service(service&&) noexcept = delete;
           ~service();
-  virtual const char* get_name() const noexcept;
-  virtual feature*    get_feature_ptr(int) noexcept;
-  virtual int         get_feature_count() const noexcept;
+          const char* get_name() const noexcept;
   virtual bool        get_enabled(bool = true) const noexcept;
           service& operator=(const service&) noexcept = delete;
           service& operator=(service&&) noexcept = delete;

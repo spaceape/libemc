@@ -50,6 +50,7 @@ namespace emc {
           m_rd = STDIN_FILENO;
           m_sd = STDOUT_FILENO;
           m_host_type = host::type::stdio;
+          printdbg("Host [%p]: Enabling STDIO descriptors %d, %d.", m_rd, m_sd);
           m_ready_bit = true;
       } else
       if(type == host::type::tty) {
@@ -58,6 +59,7 @@ namespace emc {
               m_host_type    = host::type::tty;
               m_host_address = address;
               m_sd           = m_rd;
+              printdbg("Host [%p]: Listening on tty \"%s\".", address);
               m_ready_bit    = true;
           }
       } else
@@ -72,6 +74,7 @@ namespace emc {
                       m_host_type    = host::type::socket;
                       m_host_address = address;
                       m_sd           = m_rd;
+                      printdbg("Host [%p]: Listening on UNIX socket \"%s\".", this, address);
                       m_ready_bit    = true;
                   } else
                       printdbg(
@@ -161,6 +164,7 @@ namespace emc {
                           m_host_address = address;
                           m_host_port    = port;
                           m_sd           = m_rd;
+                          printdbg("Host [%p]: Listening on INET socket \"%s:%d\".", this, address, port);
                           m_ready_bit    = true;
                       } else
                           printdbg(

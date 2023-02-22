@@ -23,7 +23,8 @@
 
 namespace emc {
 
-      service::service() noexcept
+      service::service(const char* name) noexcept:
+      m_name(name)
 {
 }
 
@@ -68,22 +69,12 @@ void  service::emc_dispatch_detach(session*) noexcept
 
 const char* service::get_name() const noexcept
 {
-      return nullptr;
-}
-
-feature* service::get_feature_ptr(int) noexcept
-{
-      return nullptr;
-}
-
-int   service::get_feature_count() const noexcept
-{
-      return 0;
+      return m_name;
 }
 
 bool  service::get_enabled(bool value) const noexcept
 {
-      return value == false;
+      return value == true;
 }
 
 /*namespace emc*/ }

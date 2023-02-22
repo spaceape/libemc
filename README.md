@@ -2,12 +2,13 @@ EMC
 ===
 
 # 1. Description
+
 EMC is a support library that encapsulates a lightweight protocol for communication between devices.
 
 # 2. Principle of operation
 
 EMC is a broadcast protocol, similar to MQTT. EMCC has not intrinsic concept of a peer, all the communication is directed towards 'the bridge' - the supporting physical layer of the
-communication channel. EMC is agnostic of whethere is one, more or no devices actively listening onto the communication channel.
+communication channel. EMC is agnostic of whether there is one, more or no devices actively listening onto the communication channel.
 
 ## 2.1. Protocol
 
@@ -35,8 +36,8 @@ communication channel. EMC is agnostic of whethere is one, more or no devices ac
 
 ### 2.1.4. Standard Events
 
-?p+ support_name
-?p- support_name
+- ?p+ support_name
+- ?p- support_name
 
 ### 2.1.5. Standard Triggers and Responses
 
@@ -44,10 +45,10 @@ communication channel. EMC is agnostic of whethere is one, more or no devices ac
   RESPONSE := ']' RSID ... EOL
 ```
 
-]i ...
-]s+ svc_name
-]s- svc_name
-]0  ready
+- ]i ...
+- ]s+ svc_name
+- ]s- svc_name
+- ]0  ready
 
 ### 'i' - the info response
 ```
@@ -132,4 +133,8 @@ Features that the server exposes to the client
 
 ## 3.2. Support
 
-Servives that are made available to the server through the bridge -->
+Servives that are made available to the server through the bridge
+
+## 3.3. Sessions
+
+-->

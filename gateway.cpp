@@ -19,7 +19,7 @@
     CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
     EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 **/
-#include "gateway.h"`
+#include "gateway.h"
 #include <config.h>
 #include <service.h>
 #include <cstring>
@@ -558,14 +558,14 @@ void  gateway::emc_send_service_event(unsigned int event, service* service_ptr) 
                   if(l_state_flag == ssf_disable) {
                       return;
                   }
-                  l_state_char = emc_service_enable_tag;
+                  l_state_char = emc_enable_tag;
               } else
               if((event & ssf_enable) == ssf_disable) {
                   // cancel the event if the event and service status flags indicate that it's already disabled
                   if(l_state_flag == ssf_disable) {
                       return;
                   }
-                  l_state_char = emc_service_disable_tag;
+                  l_state_char = emc_disable_tag;
               }
               emc_put(emc_tag_response, emc_response_service, l_state_char, SPC, p_name);
               // list features, if the service is enabled
