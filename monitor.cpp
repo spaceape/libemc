@@ -24,7 +24,7 @@
 namespace emc {
 
       monitor::monitor() noexcept:
-      service("monitor")
+      service()
 {
 }
 

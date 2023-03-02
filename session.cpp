@@ -29,6 +29,11 @@ namespace emc {
       gateway(),
       m_service_flags(type)
 {
+      m_dispatch_request = true;
+      m_dispatch_response = true;
+      m_dispatch_comment = true;
+      m_error_comment = true;
+      m_dispatch_packet = true;
       m_service_list.reserve(global::cache_small_max);
 }
 
@@ -36,6 +41,12 @@ namespace emc {
       gateway(rd, sd),
       m_service_flags(type)
 {
+      m_dispatch_request = true;
+      m_dispatch_response = true;
+      m_dispatch_comment = true;
+      m_error_comment = true;
+      m_dispatch_packet = true;
+      m_service_list.reserve(global::cache_small_max);
       emc_listen();
 }
 

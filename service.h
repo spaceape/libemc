@@ -43,6 +43,7 @@ class service
 
   friend class session;
   public:
+          service() noexcept;
           service(const char*) noexcept;
           service(const service&) noexcept = delete;
           service(service&&) noexcept = delete;

@@ -17,7 +17,7 @@ communication channel. EMC is agnostic of whether there is one, more or no devic
   RQID := [A-Za-z?]+      ; request identifier
   RSID := [A-Za-z0-9]+    ; response identifier
   SPC  := [\s\t]+
-  EOL  := '\r' '\n'
+  EOL  := [\r\n]
 ```
 
 ### 2.1.2. Protocol states

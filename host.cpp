@@ -59,7 +59,7 @@ namespace emc {
               m_host_type    = host::type::tty;
               m_host_address = address;
               m_sd           = m_rd;
-              printdbg("Host [%p]: Listening on tty \"%s\".", address);
+              printdbg("Host [%p]: Listening on tty \"%s\".", this, address);
               m_ready_bit    = true;
           }
       } else

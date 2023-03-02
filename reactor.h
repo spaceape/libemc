@@ -75,7 +75,7 @@ class reactor
 
   protected:
           bool      emc_attach_session(session*) noexcept;
-          int       ctl_inject_session_request(session*, const char*, int) noexcept;
+          // int       ctl_inject_session_request(session*, const char*, int) noexcept;
           void      emc_detach_session(session*) noexcept;
           host*     emc_attach_interface(host::type, const char*, unsigned int = host::port_undef) noexcept;
           void      emc_detach_interface(host*) noexcept;

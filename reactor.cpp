@@ -197,11 +197,6 @@ bool  reactor::emc_attach_session(session* session_ptr) noexcept
       return false;
 }
 
-int   reactor::ctl_inject_session_request(session* session_ptr, const char* request, int length) noexcept
-{
-      return session_ptr->emc_feed_request(request, length);
-}
-
 void  reactor::emc_detach_session(session* session_ptr) noexcept
 {
 }

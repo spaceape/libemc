@@ -23,6 +23,11 @@
 
 namespace emc {
 
+      service::service() noexcept:
+      m_name(nullptr)
+{
+}
+
       service::service(const char* name) noexcept:
       m_name(name)
 {

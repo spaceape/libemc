@@ -79,15 +79,16 @@ class gateway
   bool      m_flush_sync;               // send pending data upon sync() [[not implemented]]
 
   private:
-  int       m_load_min;
-  int       m_load_max;
-
   sys::argv m_args;                     // request/response command line
 
   timer     m_ping_ctr;
   timer     m_info_ctr;                 // info timer    
   timer     m_drop_ctr;                 // drop timer
   timer     m_trip_ctr;                 // trip timer
+
+  int       m_load_min;                 // how many bytes to attempt to read in upon feed(), at a minimum
+  int       m_load_max;
+  bool      m_stealth_bit;              // do not send status responses (acting as a proxy, maybe)
 
   public:
   int       m_msg_recv;
@@ -188,8 +189,6 @@ class gateway
   virtual void  emc_dispatch_packet(int, int, std::uint8_t*) noexcept;
   virtual void  emc_dispatch_disconnect() noexcept;
   virtual void  emc_sync(float) noexcept;
-
-          int   emc_feed_request(const char*, int) noexcept;
           void  emc_disconnect() noexcept;
 
   public:
@@ -206,6 +205,9 @@ class gateway
   virtual int      get_service_count() const noexcept;
 
           void     feed() noexcept;
+          void     send_raw(const char*, int) noexcept;
+          void     send_command(const char*, const sys::argv&, int = 0, int = std::numeric_limits<int>::max()) noexcept;
+          void     send_packet(int, int, std::uint8_t*) noexcept;
           void     flush() noexcept;
           void     reset() noexcept;
           void     sync(float) noexcept;

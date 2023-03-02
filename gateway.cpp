@@ -83,12 +83,13 @@ static_assert(message_ping_time <
       m_dispatch_packet(false),
       m_flush_auto(true),
       m_flush_sync(false),
-      m_load_min(s_copy_size_min),
-      m_load_max(s_copy_size_max),
       m_ping_ctr(false),
       m_info_ctr(false),
       m_drop_ctr(false),
       m_trip_ctr(false),
+      m_load_min(s_copy_size_min),
+      m_load_max(s_copy_size_max),
+      m_stealth_bit(false),
       m_msg_recv(0),
       m_msg_drop(0),
       m_msg_tmit(0),
@@ -96,8 +97,8 @@ static_assert(message_ping_time <
       m_chr_tmit(0),
       m_mem_size(0),
       m_mem_used(0),
-      m_active_bit(0),
-      m_healty_bit(0)
+      m_active_bit(false),
+      m_healty_bit(false)
 {
       if constexpr (queue_size_min > 0) {
           m_recv_data = reinterpret_cast<char*>(::malloc(queue_size_min));
@@ -465,7 +466,7 @@ bool  gateway::emc_set_send_descriptor(int id, int flags) noexcept
       return m_send_descriptor == id;
 }
 
-/* connect
+/* emc_connect
    use the supplied streams and wake up as a client
 */
 void  gateway::emc_connect() noexcept
@@ -483,7 +484,7 @@ void  gateway::emc_connect() noexcept
       }
 }
 
-/* connect
+/* emc_listen
    use the supplied streams and wake up as a server
 */
 void  gateway::emc_listen() noexcept
@@ -574,7 +575,6 @@ void  gateway::emc_send_service_event(unsigned int event, service* service_ptr) 
               emc_put(EOL);
           }
       }
-
 }
 
 void  gateway::emc_send_service_response() noexcept
@@ -683,37 +683,6 @@ void  gateway::emc_dispatch_disconnect() noexcept
 
 void  gateway::emc_sync(float) noexcept
 {
-}
-
-int   gateway::emc_feed_request(const char* request, int length) noexcept
-{
-      if(request == nullptr) {
-          return err_fail;
-      }
-      if(request[0] == 0) {
-          return err_fail;
-      }
-      if(length <= 0) {
-          return err_fail;
-      }
-      // make room to copy the request into the unused region of the receive buffer
-      char* l_copy_ptr;
-      int   l_copy_size = m_recv_used + length;
-      int   l_rc;
-      if(l_copy_size > m_recv_size) {
-          auto l_recv_ptr = reinterpret_cast<char*>(::realloc(m_recv_data, l_copy_size));
-          if(l_recv_ptr == nullptr) {
-              return err_fail;
-          }
-          m_recv_data = l_recv_ptr;
-          m_recv_size = l_copy_size;
-          m_mem_size  = m_recv_size + m_send_size;
-      }
-      // copy the request into the unused region of the receive buffer      
-      l_copy_ptr = m_recv_data + m_recv_used;
-      std::memcpy(l_copy_ptr, request, length + 1);
-      l_rc = emc_capture_request(l_copy_ptr, length);
-      return l_rc;
 }
 
 void  gateway::emc_disconnect() noexcept
@@ -965,6 +934,62 @@ void  gateway::feed() noexcept
       while(l_rewind);
 }
 
+void  gateway::send_raw(const char* message, int length) noexcept
+{
+      emc_send_raw(message, length);
+}
+
+void  gateway::send_command(const char* command, const sys::argv& arg_list, int arg_index_begin, int arg_index_end) noexcept
+{
+      int l_arg_index = 0;
+      int l_arg_end = 0;
+      int l_arg_last;
+      int l_cmd_count = 0;
+      int l_arg_count = 0;
+      if(command) {
+          if(command[0]) {
+              l_cmd_count = 1;
+          }
+      }
+      if(arg_index_begin >= 0) {
+          l_arg_index = arg_index_begin;
+          if(arg_index_begin >= arg_list.get_count()) {
+              l_arg_end = l_arg_index;
+          } else
+          if(arg_index_end >= arg_list.get_count()) {
+              if(arg_index_end >= arg_index_begin) {
+                  l_arg_end = arg_list.get_count();
+              } else
+                  l_arg_end = arg_index_begin;
+          } else
+              l_arg_end = arg_index_end;
+          l_arg_count = l_arg_end - l_arg_index;
+          if((l_cmd_count > 0) ||
+              (l_arg_count > 0)) {
+              emc_put(emc_tag_request);
+              if(l_cmd_count > 0) {
+                  emc_put(command);
+                  if(l_arg_count > 0) {
+                      emc_put(SPC);
+                  }
+              }
+              l_arg_last = l_arg_end - 1;
+              while(l_arg_index < l_arg_end) {
+                  emc_put(arg_list[l_arg_index].get_text());
+                  if(l_arg_index != l_arg_last) {
+                      emc_put(SPC);
+                  }
+                  l_arg_index++;
+              }
+              emc_put(EOL);
+          }
+      }
+}
+
+void  gateway::send_packet(int, int, std::uint8_t*) noexcept
+{
+}
+
 void  gateway::flush() noexcept
 {
       if(m_send_last) {
@@ -974,14 +999,20 @@ void  gateway::flush() noexcept
               // and ends with an EOL
               if(l_save_size < m_send_mtu) {
                   if(m_send_data[m_send_last - 1] == EOL) {
-                      m_send_iter += write(m_send_descriptor, m_send_data, l_save_size);
+                      if(m_send_descriptor != undef) {
+                          m_send_iter += write(m_send_descriptor, m_send_data, l_save_size);
+                      } else
+                          m_send_iter += l_save_size;
                   }
               }
               // split the output buffer in multiple MTU-sized chunks, but avoid splitting a message in the middle if at
               // all possible
               // NOTE: not yet properly implemented - not particularly necessary either
               if(m_send_iter < m_send_last) {
-                  m_send_iter += write(m_send_descriptor, m_send_data, l_save_size);
+                  if(m_send_descriptor != undef) {
+                      m_send_iter += write(m_send_descriptor, m_send_data, l_save_size);
+                  } else
+                      m_send_iter += l_save_size;
               }
           }
           if(m_send_iter == m_send_used) {
