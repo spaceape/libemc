@@ -34,7 +34,7 @@
 namespace emc {
 
 /* gateway
-   base class for a duplex protocol stream
+   base class for a the EMC duplex protocol stream
    - setup and maintain connection with the server
    - build and queue the protocol messages
    - recover the stream in case of incomplete or invalid messages

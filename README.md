@@ -7,7 +7,7 @@ EMC is a support library that encapsulates a lightweight protocol for communicat
 
 # 2. Principle of operation
 
-EMC is a broadcast protocol, similar to MQTT. EMCC has not intrinsic concept of a peer, all the communication is directed towards 'the bridge' - the supporting physical layer of the
+EMC is a broadcast protocol, similar to MQTT. EMCC has no intrinsic concept of a peer, all the communication is directed towards 'the bridge' - the supporting physical layer of the
 communication channel. EMC is agnostic of whether there is one, more or no devices actively listening onto the communication channel.
 
 ## 2.1. Protocol
