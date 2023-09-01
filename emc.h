@@ -22,14 +22,34 @@
     EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 **/
 #include <global.h>
-#include <sys.h>
 
 namespace emc {
 
-class reactor;
-class session;
+/* host_type
+   accompanies an address string and describes its meaning
+*/
+enum host_type
+{
+  none,
+  file,               // gateway reffers to a filesystem entry
+  stdio,              // gateway reffers to stdin
+  tty,                // gateway reffers serial port
+  socket,             // gateway reffers to a unix socket
+  net_ipv4_address,   // gateway reffers to a network IPv4 address
+  net_ipv6_address,   // gateway reffers to a network IPv6 address
+  net_name            // gateway reffers to a network gateway name
+};
+
+class controller;
+class gateway;
 class service;
 class monitor;
+
+/* chid_*
+   channel IDs
+*/
+constexpr int chid_min = 1;
+constexpr int chid_max = 127;
 
 /*namespace emc*/ }
 #endif

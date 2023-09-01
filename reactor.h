@@ -23,7 +23,7 @@
 **/
 #include "emc.h"
 #include "protocol.h"
-#include "host.h"
+#include "gateway.h"
 #include "gateway.h"
 #include <sys.h>
 #include <memory>
@@ -44,7 +44,7 @@ class reactor
   int     m_poll_count;
 
   private:
-  mmi::flat_list<host>         m_interface_list;
+  mmi::flat_list<gateway>      m_interface_list;
   mmi::flat_map<int, host*>    m_interface_descriptor_map;
   mmi::flat_map<int, session*> m_session_descriptor_map;
   sys::time_t                  m_sync_time;

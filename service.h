@@ -1,7 +1,7 @@
 #ifndef emc_service_h
 #define emc_service_h
 /** 
-    Copyright (c) 2022, wicked systems
+    Copyright (c) 2023, wicked systems
     All rights reserved.
 
     Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following
@@ -22,33 +22,18 @@
     EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 **/
 #include "emc.h"
-#include "protocol.h"
-#include "gateway.h"
+#include "pipeline.h"
 
 namespace emc {
 
-class service
+class service: public emcstage
 {
-  const char*   m_name;
-  
-  protected:
-  virtual bool  emc_dispatch_attach(session*) noexcept;
-  virtual void  emc_dispatch_request(session*, const char*, int) noexcept;
-  virtual int   emc_process_request(session*, int, const sys::argv&) noexcept;
-  virtual void  emc_dispatch_response(session*, const char*, int) noexcept;
-  virtual int   emc_process_response(session*, int, const sys::argv&) noexcept;
-  virtual void  emc_dispatch_comment(session*, const char*, int) noexcept;
-  virtual void  emc_dispatch_packet(session*, int, int, std::uint8_t*) noexcept;
-  virtual void  emc_dispatch_detach(session*) noexcept;
-
-  friend class session;
   public:
           service() noexcept;
-          service(const char*) noexcept;
           service(const service&) noexcept = delete;
           service(service&&) noexcept = delete;
           ~service();
-          const char* get_name() const noexcept;
+  virtual const char* get_name() const noexcept;
   virtual bool        get_enabled(bool = true) const noexcept;
           service& operator=(const service&) noexcept = delete;
           service& operator=(service&&) noexcept = delete;

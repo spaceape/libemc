@@ -1,5 +1,5 @@
 /** 
-    Copyright (c) 2020, wicked systems
+    Copyright (c) 2023, wicked systems
     All rights reserved.
 
     Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following
@@ -20,28 +20,28 @@
     EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 **/
 #include "gateway.h"
+#include "controller.h"
 #include <config.h>
-#include <service.h>
 #include <cstring>
-#include <fcntl.h>
+#include <limits>
+
+      constexpr int  s_mtu_min = 32;
+      constexpr int  s_mtu_max = 65536;
+
+      constexpr int  s_state_drop = std::numeric_limits<int>::min();    // reject any incoming messages
+      constexpr int  s_state_recover = -1;                              // buffer crashed, recover
+      constexpr int  s_state_accept = 0;                                // normal state: read in and capture traffic
+      constexpr int  s_state_capture_message = 2;                       // normal state, capture message until it completes
+      constexpr int  s_state_capture_packet = 3;                        // normal state, capture packet until it completes
 
 namespace emc {
 
-      constexpr int  s_mtu_min = 256;
-      constexpr int  s_mtu_max = 4096;
-
-      constexpr int  s_state_drop = std::numeric_limits<int>::min();  // discard all received input
-      constexpr int  s_state_recover = -1;                            // buffer crashed, recover
-      constexpr int  s_state_accept = 0;                              // normal state: read in and capture traffic
-      constexpr int  s_state_capture_message = 2;                     // normal state, capture message until it completes
-      constexpr int  s_state_capture_packet = 3;                      // normal state, capture packet until it completes
-
-      constexpr int  s_copy_size_min = global::cache_small_max;
-      constexpr int  s_copy_size_max = global::cache_large_max;
-
 /* brief sanity checks for the global settings
 */
-static_assert(EOF < 0, "this module requires `char` to be signed, please recompile with \"-fsigned-char\"");
+static_assert(s_mtu_min > 0, "Minimum MTU shuld be greater than zero");
+static_assert(s_mtu_max >= s_mtu_min, "Maximum MTU shuld be at least equal to the minimum MTU");
+
+static_assert(EOF < 0, "This module requires `char` to be signed, please recompile with \"-fsigned-char\"");
 static_assert(message_wait_time < message_drop_time, "message_wait_time should not exceed the message_drop_time");
 static_assert(message_trip_time > message_wait_time, "message_trip_time should be greater than message_wait_time");
 static_assert(message_ping_time > message_wait_time, "message_ping_time should be greater than message_wait_time");
@@ -51,45 +51,38 @@ static_assert(message_ping_time <
                 "processed and circle back at the destination"
 );
 
-      gateway::gateway() noexcept:
+      gateway::gateway(unsigned int options) noexcept:
+      rawstage(),
       m_recv_data(nullptr),
-      m_recv_descriptor(undef),
       m_recv_iter(0),
-      m_recv_last(0),
-      m_recv_used(0),
       m_recv_size(0),
       m_recv_mtu(std::numeric_limits<short int>::max()),
-      m_recv_state(s_state_accept),
+      m_recv_state(s_state_drop),
       m_send_data(nullptr),
-      m_send_descriptor(undef),
       m_send_iter(0),
-      m_send_last(0),
-      m_send_used(0),
       m_send_size(0),
       m_send_mtu(mtu_size),
+      m_args(),
+      p_stage_head(nullptr),
+      p_stage_tail(nullptr),
       m_gate_name{0},
       m_gate_info{0},
-      m_user_role(false),
-      m_host_role(false),
       m_gate_ping_time(message_ping_time),
       m_gate_info_time(message_wait_time + message_wait_time),
       m_gate_wait_time(message_wait_time),
       m_gate_drop_time(message_drop_time),
       m_gate_trip_time(message_trip_time),
-      m_dispatch_request(false),
-      m_dispatch_response(false),
-      m_dispatch_comment(false),
       m_error_comment(false),
       m_dispatch_packet(false),
-      m_flush_auto(true),
+      m_flush_auto(options & o_flush_auto),
       m_flush_sync(false),
       m_ping_ctr(false),
       m_info_ctr(false),
       m_drop_ctr(false),
       m_trip_ctr(false),
-      m_load_min(s_copy_size_min),
-      m_load_max(s_copy_size_max),
-      m_stealth_bit(false),
+      m_reserve_min(queue_size_min),
+      m_reserve_max(queue_size_max),
+      m_stealth_bit(options & o_stealth),
       m_msg_recv(0),
       m_msg_drop(0),
       m_msg_tmit(0),
@@ -97,9 +90,13 @@ static_assert(message_ping_time <
       m_chr_tmit(0),
       m_mem_size(0),
       m_mem_used(0),
-      m_active_bit(false),
-      m_healty_bit(false)
+      m_host_role(false),
+      m_user_role(false),
+      m_stage_count(0),
+      m_ready_bit(false),
+      m_healthy_bit(false)
 {
+      // reserve memory in the queues
       if constexpr (queue_size_min > 0) {
           m_recv_data = reinterpret_cast<char*>(::malloc(queue_size_min));
           m_recv_size = queue_size_min;
@@ -108,33 +105,30 @@ static_assert(message_ping_time <
       }
 }
 
-      gateway::gateway(int rd, int sd) noexcept:
-      gateway()
-{
-      emc_set_recv_descriptor(rd);
-      emc_set_send_descriptor(sd);
-}
-    
       gateway::~gateway()
 {
+      emcstage* i_stage = p_stage_tail;
+      while(i_stage != nullptr) {
+          i_stage->emc_std_detach(this);
+          i_stage = i_stage->p_stage_prev;
+      }
       if(m_send_data) {
-          free(m_send_data);
+          ::free(m_send_data);
       }
       if(m_recv_data) {
-          free(m_recv_data);
+          ::free(m_recv_data);
       }
 }
 
 void  gateway::emc_emit(char c) noexcept
 {
-      char* l_save_ptr = emc_reserve(1);
-      if(l_save_ptr) {
-          *l_save_ptr = c;
-          m_send_last =(l_save_ptr - m_send_data) + 1;
-          m_send_used = m_send_last;
+      auto l_emit_ptr = emc_reserve(1);
+      if(l_emit_ptr != nullptr) {
+          *l_emit_ptr = c;
+          m_send_iter += 1;
           // auto-flush enabled: call flush() if the char being stored into the output buffer is EOL
           if(m_flush_auto) {
-              if(c == EOL) {
+              if(*l_emit_ptr == EOL) {
                   flush();
               }
           }
@@ -143,28 +137,18 @@ void  gateway::emc_emit(char c) noexcept
 
 void  gateway::emc_emit(int size, const char* text) noexcept
 {
-      char* l_save_ptr = nullptr;
-      if(text) {
-          if(size >= 0) {
-              if(size == 0) {
-                  size = std::strlen(text);
-              }
-              if((text < m_send_data + m_send_last) ||
-                  (text > m_send_data + m_send_size)) {
-                  l_save_ptr = emc_reserve(size);
-                  if(l_save_ptr) {
-                      std::strncpy(l_save_ptr, text, size);
-                  }
-              }
-              if(l_save_ptr) {
-                  m_send_last =(l_save_ptr - m_send_data) + size;
-                  m_send_used = m_send_last;
-                  // auto-flush enabled: call flush() if the last char being stored into the output buffer is EOL
-                  if(m_flush_auto) {
-                      if((text[size - 1] == EOL) ||
-                          (text[size - 1] == RET)) {
-                          flush();
-                      }
+      if(size == 0) {
+          size = std::strlen(text);
+      }
+      if(size > 0) {
+          auto l_copy_ptr = text;
+          auto l_emit_ptr = emc_reserve(size);
+          if(l_emit_ptr != nullptr) {
+              std::memcpy(l_emit_ptr, l_copy_ptr, size);
+              m_send_iter += size;
+              if(m_flush_auto) {
+                  if(l_emit_ptr[size - 1] == EOL) {
+                      flush();
                   }
               }
           }
@@ -173,32 +157,32 @@ void  gateway::emc_emit(int size, const char* text) noexcept
 
 char* gateway::emc_reserve(int size) noexcept
 {
-      char* l_result = nullptr;
-      if(size >= 0) {
-          int l_reserve_offset = m_send_used;
-          int l_reserve_last   = l_reserve_offset + size;
-          if(l_reserve_last > m_send_size) {
-              m_send_data = reinterpret_cast<char*>(::realloc(m_send_data, l_reserve_last));
-              m_send_size = l_reserve_last;
+      void*  l_reserve_ptr;
+      if(size > 0) {
+          int  l_reserve_offset = m_send_iter;
+          int  l_reserve_size   = l_reserve_offset + size;
+          if(l_reserve_size > m_send_size) {
+              if(l_reserve_size > m_reserve_max) {
+                  return nullptr;
+              }
+              l_reserve_ptr = ::realloc(m_send_data, l_reserve_size);
+              if(l_reserve_ptr == nullptr) {
+                  return nullptr;
+              }
+              m_send_data = reinterpret_cast<char*>(l_reserve_ptr);
+              m_send_size = l_reserve_size;
           }
-          if(m_send_data) {
-              m_send_used = l_reserve_last + size;
-              l_result    = m_send_data + l_reserve_offset;
-          }
+          return m_send_data + m_send_iter;
       }
-      return l_result;
+      if(m_send_data != nullptr) {
+          return m_send_data + m_send_iter;
+      }
+      return nullptr;
 }
 
-/* emc_capture_request()
-   handle incoming request
-*/
-int   gateway::emc_capture_request(char* message, int length) noexcept
+int   gateway::emc_feed_request(char* message, int length) noexcept
 {
-      if(m_dispatch_request) {
-          emc_dispatch_request(message, length);
-      }
-  
-      // load the received request string onto up the command pre-parser
+      // load the received request string onto a command pre-parser
       int   l_argc = m_args.load(message + 1);
       auto& l_argv = m_args;
       int   l_rc   = err_parse;
@@ -207,14 +191,17 @@ int   gateway::emc_capture_request(char* message, int length) noexcept
           l_rc = emc_process_request(l_argc, l_argv);
           // ...or otherwise handle standard requests here
           if(l_rc == err_no_request) {
-              int l_tag = m_args[0][0];
-              switch(l_tag) {
-                  case emc_request_info:
-                      l_rc = emc_send_info_response();
-                      break;
-                  default:
-                      l_rc = emc_process_request(l_argc, m_args);
-                      break;
+              // int l_tag = m_args[0][0];
+              // switch(l_tag) {
+              //     case emc_request_info:
+              //         l_rc = emc_send_info_response();
+              //         break;
+              //     default:
+              //         l_rc = emc_std_forward_request(l_argc, m_args);
+              //         break;
+              // }
+              if(l_rc == err_no_response) {
+                  l_rc = emc_std_forward_request(l_argc, m_args);
               }
           }
       }
@@ -223,7 +210,7 @@ int   gateway::emc_capture_request(char* message, int length) noexcept
           // on a parse error also handle as a comment, maybe?
           if(l_rc == err_parse) {
               if(m_error_comment) {
-                  emc_capture_comment(message, length);
+                  emc_feed_comment(message, length);
               }
           }
           l_rc = emc_send_error(l_rc);
@@ -231,17 +218,8 @@ int   gateway::emc_capture_request(char* message, int length) noexcept
       return l_rc;
 }
 
-int   gateway::emc_process_request(int, const sys::argv&) noexcept
+void  gateway::emc_feed_response(char* message, int length) noexcept
 {
-      return err_no_request;
-}
-
-void  gateway::emc_capture_response(char* message, int length) noexcept
-{
-      if(m_dispatch_response) {
-          emc_dispatch_response(message, length);
-      }
-
       // load the received response string onto up the command pre-parser
       int   l_argc = m_args.load(message + 1);
       auto& l_argv = m_args;
@@ -285,7 +263,7 @@ void  gateway::emc_capture_response(char* message, int length) noexcept
                                       m_info_ctr.suspend();
                                       m_trip_ctr.suspend();
                                       m_trip_ctr.reset();
-                                      emc_dispatch_connect(m_gate_name, m_gate_info, l_mtu);
+                                      emc_std_connect(m_gate_name, m_gate_info, l_mtu);
                                       l_rc = err_okay;
                                   } else
                                       break;
@@ -333,7 +311,7 @@ void  gateway::emc_capture_response(char* message, int length) noexcept
           // on a parse error also handle as a comment, maybe?
           if(l_rc == err_parse) {
               if(m_error_comment) {
-                  emc_capture_comment(message, length);
+                  emc_feed_comment(message, length);
               }
           }
           // 'no response' is a silent error
@@ -350,157 +328,14 @@ void  gateway::emc_capture_response(char* message, int length) noexcept
       }
 }
 
-int   gateway::emc_process_response(int, const sys::argv&) noexcept
+void  gateway::emc_feed_comment(char* message, int length) noexcept
 {
-      return err_no_response;
+      emc_std_forward_comment(message, length);
 }
 
-void  gateway::emc_capture_comment(char* message, int length) noexcept
+void  gateway::emc_feed_packet(int channel, int size, std::uint8_t* data) noexcept
 {
-      if(m_dispatch_comment) {
-          emc_dispatch_comment(message, length);
-      }
-}
-
-void  gateway::emc_capture_packet(int channel, int size, std::uint8_t* data) noexcept
-{
-      if(m_dispatch_packet) {
-          emc_dispatch_packet(channel, size, data);
-      }
-}
-
-void  gateway::emc_set_flags(int id, int flags) noexcept
-{
-    // remember the current flags
-    int l_flags = fcntl(id, F_GETFL, 0);
-    int l_result = -1;
-    if(l_flags >= 0) {
-        l_flags |= flags;
-        l_result = fcntl(id, F_SETFL, flags);
-    }
-    if(l_result <= 0) {
-        printdbg(
-            "Failed to set flags '%.8x' on descriptor '%d'",
-            __FILE__,
-            __LINE__,
-            flags,
-            id
-        );
-    }
-}
-
-void  gateway::emc_drop() noexcept
-{
-      if(m_recv_used > m_recv_last) {
-          m_recv_used = m_recv_last;
-          m_msg_drop++;
-      }
-}
-
-void  gateway::emc_trip() noexcept
-{
-      emc_disconnect();
-}
-
-auto  gateway::emc_get_gate_name() const noexcept -> const char*
-{
-      return m_gate_name;
-}
-
-auto  gateway::emc_get_gate_info() const noexcept -> const char*
-{
-      return m_gate_info;
-}
-
-int   gateway::emc_get_send_mtu() const noexcept
-{
-      return m_send_mtu;
-}
-
-bool  gateway::emc_set_send_mtu(int mtu) noexcept
-{
-      if(mtu >= s_mtu_min) {
-          if(mtu <= s_mtu_max) {
-              m_send_mtu = mtu;
-              return true;
-          }
-      }
-      return false;
-}
-
-bool  gateway::emc_set_recv_descriptor(int id, int flags) noexcept
-{
-      if(m_recv_descriptor != id) {
-          if(m_recv_descriptor != undef) {
-              if((m_recv_iter != 0) ||
-                  (m_recv_last != 0)) {
-                  return false;
-              }
-          }
-          if(id != undef) {
-              if(flags != 0) {
-                  emc_set_flags(id, flags);
-              }
-          }
-          m_recv_descriptor = id;
-      }
-      return m_recv_descriptor == id;
-}
-
-bool  gateway::emc_set_send_descriptor(int id, int flags) noexcept
-{
-      if(m_send_descriptor != id) {
-          if(m_send_descriptor != undef) {
-              if((m_send_iter != 0) ||
-                  (m_send_last != 0)) {
-                  return false;
-              }
-          }
-          if(id != undef) {
-              if(flags != 0) {
-                  emc_set_flags(id, flags);
-              }
-          }
-          m_send_descriptor = id;
-      }
-      return m_send_descriptor == id;
-}
-
-/* emc_connect
-   use the supplied streams and wake up as a client
-*/
-void  gateway::emc_connect() noexcept
-{
-      if(m_user_role == false) {
-          if(m_send_descriptor != undef) {
-              m_ping_ctr.resume();
-              m_info_ctr.resume();
-              m_trip_ctr.resume();
-              m_recv_state = s_state_accept;
-              m_user_role = true;
-              m_active_bit = true;
-              m_healty_bit = false;
-          }
-      }
-}
-
-/* emc_listen
-   use the supplied streams and wake up as a server
-*/
-void  gateway::emc_listen() noexcept
-{
-      if(m_host_role == false) {
-          if(m_active_bit =
-              (m_recv_descriptor != undef) &&
-              (m_send_descriptor != undef);
-              m_active_bit == true) {
-              m_drop_ctr.resume();
-              m_host_role = true;
-          }
-          if(m_host_role) {
-              emc_send_sync();
-          }
-      }
+      emc_std_forward_packet(channel, size, data);
 }
 
 int   gateway::emc_send_info_response() noexcept
@@ -512,12 +347,12 @@ int   gateway::emc_send_info_response() noexcept
 
       if((l_machine_name == nullptr) ||
           (l_machine_name[0] == 0)) {
-          l_machine_name = emc_machine_name_none;
+          l_machine_name = emc_machine_name_default;
       }
 
       if((l_machine_type == nullptr) ||
           (l_machine_type[0] == 0)) {
-          l_machine_type = emc_machine_type_generic;
+          l_machine_type = emc_machine_type_default;
       }
 
       if(os::is_lsb) {
@@ -547,45 +382,8 @@ void  gateway::emc_send_info_request() noexcept
       );
 }
 
-void  gateway::emc_send_service_event(unsigned int event, service* service_ptr) noexcept
-{
-      const char* p_name = service_ptr->get_name();
-      if(p_name != nullptr) {
-          if(p_name[0] != NUL) {
-              char         l_state_char;
-              unsigned int l_state_flag = service_ptr->get_enabled() ? ssf_enable : ssf_disable;
-              if((event & ssf_enable) == ssf_enable) {
-                  // cancel the event if the event and service status flags disagree
-                  if(l_state_flag == ssf_disable) {
-                      return;
-                  }
-                  l_state_char = emc_enable_tag;
-              } else
-              if((event & ssf_enable) == ssf_disable) {
-                  // cancel the event if the event and service status flags indicate that it's already disabled
-                  if(l_state_flag == ssf_disable) {
-                      return;
-                  }
-                  l_state_char = emc_disable_tag;
-              }
-              emc_put(emc_tag_response, emc_response_service, l_state_char, SPC, p_name);
-              // list features, if the service is enabled
-              // if(l_state_flag == ssf_enable) {
-              // }
-              emc_put(EOL);
-          }
-      }
-}
-
 void  gateway::emc_send_service_response() noexcept
 {
-      int l_service_count = get_service_count();
-      for(int i_service = 0; i_service < l_service_count; i_service++) {
-          service* p_service = get_service_ptr(i_service);
-          if(p_service) {
-              emc_send_service_event(ssf_enable, p_service);
-          }
-      }
 }
 
 void  gateway::emc_send_ping_request() noexcept
@@ -657,375 +455,440 @@ int   gateway::emc_send_error(int rc, const char* message, ...) noexcept
       return rc;
 }
 
-void  gateway::emc_dispatch_connect(const char*, const char*, int) noexcept
+void  gateway::emc_std_join() noexcept
 {
-}
-
-void  gateway::emc_dispatch_request(const char*, int) noexcept
-{
-}
-
-void  gateway::emc_dispatch_response(const char*, int) noexcept
-{
-}
-
-void  gateway::emc_dispatch_comment(const char*, int) noexcept
-{
-}
-
-void  gateway::emc_dispatch_packet(int, int, std::uint8_t*) noexcept
-{
-}
-
-void  gateway::emc_dispatch_disconnect() noexcept
-{
-}
-
-void  gateway::emc_sync(float) noexcept
-{
-}
-
-void  gateway::emc_disconnect() noexcept
-{
-      if(m_active_bit) {
-          emc_dispatch_disconnect();
+      if(p_stage_head != nullptr) {
+          p_stage_head->emc_std_join();
       }
+}
+
+void  gateway::emc_std_connect(const char* gate_name, const char* gate_info, int mtu) noexcept
+{
+      if(p_stage_head != nullptr) {
+          p_stage_head->emc_std_connect(gate_name, gate_info, mtu);
+      }
+}
+
+int   gateway::emc_std_forward_request(int argc, const sys::argv& argv) noexcept
+{
+      if(p_stage_head != nullptr) {
+          return p_stage_head->emc_std_process_request(argc, argv);
+      }
+      return err_no_request;
+}
+
+int   gateway::emc_std_forward_response(int argc, const sys::argv& argv) noexcept
+{
+      if(p_stage_head != nullptr) {
+          return p_stage_head->emc_std_process_response(argc, argv);
+      }
+      return err_no_response;
+}
+
+void  gateway::emc_std_forward_comment(const char* message, int length) noexcept
+{
+      if(p_stage_head != nullptr) {
+          p_stage_head->emc_std_process_comment(message, length);
+      }
+}
+
+int   gateway::emc_std_forward_packet(int channel, int size, std::uint8_t* data) noexcept
+{
+      if(p_stage_head != nullptr) {
+          return p_stage_head->emc_std_process_packet(channel, size, data);
+      }
+      return err_okay;
+}
+
+int   gateway::emc_std_return_message(const char* message, int length) noexcept
+{
+      emc_emit(length, message);
+      return err_okay;
+}
+
+int   gateway::emc_std_return_packet(int channel, int size, std::uint8_t* data) noexcept
+{
+      if((channel >= chid_min) &&
+          (channel <= chid_max)) {
+          // TODO
+          return err_okay;
+      }
+      return err_fail;
+}
+
+void  gateway::emc_std_disconnect() noexcept
+{
+      if(p_stage_tail != nullptr) {
+          p_stage_tail->emc_std_disconnect();
+      }
+}
+
+void  gateway::emc_std_trip() noexcept
+{
+}
+
+void  gateway::emc_std_drop() noexcept
+{
+      if(p_stage_tail != nullptr) {
+          p_stage_tail->emc_std_drop();
+      }
+}
+
+auto  gateway::emc_get_gate_name() const noexcept -> const char*
+{
+      return m_gate_name;
+}
+
+auto  gateway::emc_get_gate_info() const noexcept -> const char*
+{
+      return m_gate_info;
+}
+
+int   gateway::emc_get_send_mtu() const noexcept
+{
+      return m_send_mtu;
+}
+
+bool  gateway::emc_set_send_mtu(int mtu) noexcept
+{
+      if(mtu >= s_mtu_min) {
+          if(mtu <= s_mtu_max) {
+              m_send_mtu = mtu;
+              return true;
+          }
+      }
+      return false;
+}
+
+void  gateway::emc_raw_attach(controller* controller) noexcept
+{
+      // get the gateway information from the controller instance
+      if((controller != nullptr) &&
+          (controller == p_owner)) {
+          if((m_user_role == false) &&
+              (m_host_role == false)) {
+              if(controller->has_role(controller::role::user)) {
+                  m_user_role = true;
+                  m_msg_recv = 0;
+                  m_msg_drop = 0;
+                  m_msg_tmit = 0;
+              } else
+              if(controller->has_role(controller::role::host)) {
+                  m_host_role = true;
+                  m_msg_recv = 0;
+                  m_msg_drop = 0;
+                  m_msg_tmit = 0;
+                  m_drop_ctr.resume();
+                  m_ready_bit = true;
+                  m_healthy_bit = true;
+                  m_recv_state = s_state_accept;
+                  emc_send_sync();
+              }
+          }
+      }
+}
+
+void  gateway::emc_raw_join() noexcept
+{
+      if(m_ready_bit == false) {
+          // reset the controller state
+          m_msg_recv = 0;
+          m_msg_drop = 0;
+          m_msg_tmit = 0;
+          m_recv_state = s_state_accept;
+          if(m_user_role) {
+              m_ping_ctr.resume();
+              m_info_ctr.resume();
+              m_trip_ctr.resume();
+              m_ready_bit = true;
+              emc_std_join();
+          }
+      }
+      rawstage::emc_raw_join();
+}
+
+int   gateway::emc_raw_feed(std::uint8_t* data, int size) noexcept
+{
+      char* p_feed;
+      char* p_last;
+      int   l_read_size;
+      int   l_feed_iter;
+      int   l_send_rc;
+      int   l_feed_rc = err_okay;
+      // pass through the inbound data
+      if(m_recv_state != s_state_drop) {
+          l_feed_iter = 0;
+          while(l_feed_iter < size) {
+              p_feed      = reinterpret_cast<char*>(data + l_feed_iter);
+              p_last      = reinterpret_cast<char*>(data + size);
+              l_read_size = 0;
+              if(m_recv_state >= s_state_accept) {
+                  if(m_recv_state == s_state_accept) {
+                      m_recv_iter = 0;
+                      m_recv_packet_left = 0;
+                      m_recv_packet_size = 0;
+                      if((*p_feed > EOF) &&
+                          (*p_feed < ASCII_MAX)) {
+                          // regular message, set state to '_capture_message'
+                          m_recv_state = s_state_capture_message;
+                      } else
+                      if(*p_feed < EOF) {
+                          // packet, set state to '_capture_packet'
+                          m_recv_state = s_state_capture_packet;
+                      } else
+                      if(*p_feed == EOF) {
+                          // caugth EOF, ignore in this context
+                      } else
+                      if(*p_feed == ASCII_MAX) {
+                          // caugth \x7f, ignore for now, decide what TODO later
+                      }
+                  }
+                  if(m_recv_state == s_state_capture_message) {
+                      bool  l_commit = false;
+                      bool  l_reject = false;
+                      // run through the inbound data and copy it into the receive buffer, until the first end of line;
+                      while(p_feed < p_last) {
+                          l_read_size++;
+                          if(m_recv_iter == m_recv_size) {
+                              void* l_recv_data;
+                              int   l_recv_reserve;
+                              if(m_recv_iter >= m_reserve_max) {
+                                  l_reject     = true;
+                                  l_feed_rc = err_fail;
+                                  break;
+                              }
+                              l_recv_reserve = m_recv_size + size;
+                              if(l_recv_reserve > m_reserve_max) {
+                                  l_recv_reserve = m_reserve_max;
+                              }
+                              l_recv_data = ::realloc(m_recv_data, l_recv_reserve);
+                              if(l_recv_data == nullptr) {
+                                  l_reject     = true;
+                                  l_feed_rc = err_fail;
+                                  break;
+                              }
+                              m_recv_size = l_recv_reserve;
+                          }
+                          if(*p_feed == NUL) {
+                              m_recv_data[m_recv_iter++] = NUL;
+                              l_commit = true;
+                              break;
+                          } else
+                          if(*p_feed == EOL) {
+                              if(m_recv_iter > 0) {
+                                  if(m_recv_data[m_recv_iter - 1] == RET) {
+                                      m_recv_data[m_recv_iter - 1] = NUL;
+                                  } else
+                                      m_recv_data[m_recv_iter++] = NUL;
+                              } else
+                                  m_recv_data[m_recv_iter++] = NUL;
+                              l_commit = true;
+                              break;
+                          }
+                          m_recv_data[m_recv_iter++] = *p_feed;
+                          p_feed++;
+                      }
+                      // check the state set by the feed loop
+                      if(l_reject) {
+                          if((*p_feed == NUL) ||
+                              (*p_feed == EOL)) {
+                              m_msg_drop++;
+                              m_recv_state = s_state_accept;
+                          } else
+                              m_recv_state = s_state_recover;
+                          m_recv_iter = 0;
+                      } else
+                      if(l_commit) {
+                          char* p_recv        = m_recv_data;
+                          int   l_recv_length = m_recv_iter;
+                          if(*p_recv == emc_tag_request) {
+                              // capture requests, if gateway is running as server
+                              if(m_host_role) {
+                                  char* p_next = p_recv + 1;
+                                  if((*p_recv == emc_tag_sync) && (*p_next == NUL)) {
+                                      emc_send_sync();
+                                  } else
+                                  if((*p_recv == emc_tag_help) && (*p_next == NUL)) {
+                                      emc_send_help();
+                                  } else
+                                      emc_feed_request(p_recv, l_recv_length);
+                              } else
+                                  emc_feed_comment(p_recv, l_recv_length);
+                          } else
+                          if(*p_recv == emc_tag_response) {
+                              // capture responses, if waiting for any
+                              if(m_user_role) {
+                                  emc_feed_response(p_recv, l_recv_length);
+                              } else
+                                  emc_feed_comment(p_recv, l_recv_length);
+                          } else
+                              emc_feed_comment(p_recv, l_recv_length);
+                          m_msg_recv++;
+                      }
+                      // clear the message drop timer 
+                      m_drop_ctr.reset();
+                  } else
+                  if(m_recv_state == s_state_capture_packet) {
+                      if(m_recv_packet_left <= size) {
+                          l_read_size = m_recv_packet_left;
+                      } else
+                          l_read_size = size;
+                      // TODO - packet support
+                  }
+              }
+              if(m_recv_state == s_state_recover) {
+                  // recover from an error in message acquisition or from an unknown state
+                  if(m_recv_packet_left > 0) {
+                      // skip until the end of the packet and restore the `accept` state once reached
+                      if(m_recv_packet_left <= size) {
+                          l_read_size  = m_recv_packet_left;
+                          m_recv_state = s_state_accept;
+                          m_msg_drop++;
+                      } else
+                          l_read_size = size;
+                      m_recv_packet_left -= l_read_size;
+                  } else
+                  if(true) {
+                      // run through the inbound data and copy it into the receive buffer, until the first end of line;
+                      while(p_feed < p_last) {
+                          l_read_size++;
+                          if((*p_feed == NUL) || (*p_feed == EOL)) {
+                              m_recv_state = s_state_accept;
+                              m_msg_drop++;
+                              break;
+                          }
+                          p_feed++;
+                      }
+                  }
+                  // clear the message drop timer 
+                  m_drop_ctr.reset();
+              }
+              l_feed_iter += l_read_size;
+          }
+      }
+      // update the transfer statistics
+      m_chr_recv += size;
+      // encountered bus activity, clear the ping and trip timers
+      m_ping_ctr.reset();
+      m_trip_ctr.reset();
+      // forward the event further down the pipeline
+      l_send_rc = rawstage::emc_raw_feed(data, size);
+      if(l_send_rc != err_okay) {
+          return l_send_rc;
+      }
+      return l_feed_rc;
+}
+
+int   gateway::emc_raw_send(std::uint8_t* data, int size) noexcept
+{
+      return rawstage::emc_raw_send(data, size);
+}
+
+void  gateway::emc_raw_drop() noexcept
+{
+      if(m_user_role) {
+          if(m_ready_bit) {
+              if(m_healthy_bit) {
+                  emc_std_disconnect();
+                  m_healthy_bit = false;
+              }
+              emc_std_drop();
+              m_ready_bit = false;
+          }
+          m_user_role = false;
+      }
+
+      rawstage::emc_raw_drop();
+
       m_host_role = false;
-      m_user_role = false;
-      m_healty_bit = false;
-      m_active_bit = false;
       m_ping_ctr.suspend();
       m_info_ctr.suspend();
       m_drop_ctr.suspend();
       m_trip_ctr.suspend();
       m_recv_state = s_state_drop;
       m_recv_iter = 0;
-      m_recv_last = 0;
-      m_recv_used = 0;
       m_send_iter = 0;
-      m_send_last = 0;
-      m_send_used = 0;
       m_gate_name[0] = 0;
       m_gate_info[0] = 0;
 }
 
-int   gateway::get_recv_descriptor() const noexcept
+void  gateway::emc_raw_detach(controller*) noexcept
 {
-      return m_recv_descriptor;
 }
 
-int   gateway::get_send_descriptor() const noexcept
+int   gateway::emc_process_request(int argc, const sys::argv& argv) noexcept
 {
-      return m_send_descriptor;
+      return err_no_request;
 }
 
-service* gateway::get_service_ptr(int) noexcept
+int   gateway::emc_process_response(int argc, const sys::argv& argv) noexcept
 {
-      return nullptr;
+      return err_no_response;
 }
 
-int   gateway::get_service_count() const noexcept
+void  gateway::emc_stage_attach(int, emcstage*) noexcept
 {
-      return 0;
 }
 
-void  gateway::feed() noexcept
+void  gateway::emc_stage_detach(int, emcstage*) noexcept
 {
-      bool l_rewind = false;
+}
 
-      do {
-          // shift consumed data to make sure the read buffer does not overflow unnecessarily
-          if(m_recv_last > 0) {
-              int l_drop_size = m_recv_last;
-              int l_copy_size = m_recv_iter - m_recv_last;
-              if(l_copy_size > 0) {
-                  if(l_copy_size < l_drop_size) {
-                      std::memcpy(m_recv_data, m_recv_data + m_recv_last, l_copy_size);
-                  } else
-                      std::memmove(m_recv_data, m_recv_data + m_recv_last, l_copy_size);
-              }
-              m_recv_used -= m_recv_last;
-              m_recv_iter -= m_recv_last;
-              m_recv_last -= m_recv_last;
-          }
-      
-          // compute load size
-          // the load size is limited by the maximum load size and the maximum size of the memory buffer
-          int l_load_size = m_recv_size - m_recv_used;
-          if(l_load_size < m_load_min) {
-              l_load_size += m_load_max;
-              if(m_recv_used + l_load_size > m_load_max) {
-                  l_load_size = m_load_max - m_recv_used;
-                  if(l_load_size == 0) {
-                      m_recv_state = s_state_recover;
-                  }
-              }
-          }
-
-          if(m_recv_state >= s_state_accept) {
-              // reserve buffer space if needed
-              int l_recv_size = m_recv_used + l_load_size;
-              if(l_recv_size > m_recv_size) {
-                  auto l_recv_ptr = reinterpret_cast<char*>(::realloc(m_recv_data, l_recv_size));
-                  if(l_recv_ptr == nullptr) {
-                      m_recv_state = s_state_recover;
-                      l_rewind = true;
-                      continue;
-                  }
-                  m_recv_data = l_recv_ptr;
-                  m_recv_size = l_recv_size;
-                  m_mem_size  = m_recv_size + m_send_size;
-              }
-              // read in
-              char* l_read_ptr  = m_recv_data + m_recv_used;
-              int   l_read_size = read(m_recv_descriptor, l_read_ptr, l_load_size);
-              if(l_read_size > 0) {
-                  m_recv_used = m_recv_used + l_read_size;
-                  // received data, reset relevant timers
-                  m_ping_ctr.reset();
-                  m_trip_ctr.reset();
-                  // seek at the last recv_iter position, record the newly read symbols and look for a message terminator
-                  // - messages are unconditionally cached into the recv buffer, pre-parsed and dispatched as soon as a CR/LF
-                  //   is encountered;
-                  // - packets can either be dispatched as soon as they arrive or cached, depending on how the channel is set
-                  //   by its governing stream;
-                  // - packet data arriving on an unbound channel is immediately discarded (and hence forever lost)
-                  if(m_recv_state >= s_state_accept) {
-                      char*  l_feed_prev;
-                      char*  l_feed_iter = m_recv_data + m_recv_iter;
-                      char*  l_feed_tail = l_feed_iter + l_read_size;
-                      while(l_feed_iter < l_feed_tail) {
-                          char* l_feed_base = m_recv_data + m_recv_last;
-                          if(m_recv_state == s_state_accept) {
-                              m_recv_packet_left = 0;
-                              m_recv_packet_size = 0;
-                              if(*l_feed_iter > 0) {
-                                  // regular message, set state to '_capture_message'
-                                  m_recv_state = s_state_capture_message;
-                              } else
-                              if(*l_feed_iter < EOF) {
-                                  // packet, set state to '_capture_packet'
-                                  m_recv_state = s_state_capture_packet;
-                              } else
-                              if(*l_feed_iter == EOF) {
-                                  // caugth EOF, ignore in this context
-                                  m_recv_last = m_recv_iter + 1;
-                              }
-                          }
-                          if(m_recv_state == s_state_capture_message) {
-                              // try to cope with `\r`, `\n' and `\r\n` altogheter
-                              if((*l_feed_iter == EOL) || (*l_feed_iter == RET)) {
-                                  *l_feed_iter = 0;
-                                  if(l_feed_iter > m_recv_data) {
-                                      l_feed_prev = l_feed_iter - 1;
-                                      if((*l_feed_iter == EOL) && (*l_feed_prev == RET)) {
-                                          *l_feed_prev = 0;
-                                      }
-                                  }
-                                  if(*l_feed_base == emc_tag_request) {
-                                      // capture requests, if gateway is running as server
-                                      if(m_host_role) {
-                                          if(*l_feed_base == emc_tag_sync) {
-                                              emc_send_sync();
-                                          } else
-                                          if((*l_feed_base == emc_tag_help) &&
-                                              ((*l_feed_base == SPC) || (*l_feed_base == EOS)))  {
-                                              emc_send_help();
-                                          } else
-                                              emc_capture_request(l_feed_base, l_feed_iter - l_feed_base);
-                                      } else
-                                          emc_capture_comment(l_feed_base, l_feed_iter - l_feed_base);
-                                  } else
-                                  if(*l_feed_base == emc_tag_response) {
-                                      // capture responses, if waiting for any
-                                      if(m_user_role) {
-                                          emc_capture_response(l_feed_base, l_feed_iter - l_feed_base);
-                                      } else
-                                          emc_capture_comment(l_feed_base, l_feed_iter - l_feed_base);
-                                  } else
-                                      emc_capture_comment(l_feed_base, l_feed_iter - l_feed_base);
-                                  m_drop_ctr.reset();
-                                  m_recv_last = m_recv_iter + 1;
-                                  m_msg_recv++;
-                              } else
-                              if((*l_feed_iter >= 0) &&
-                                  (*l_feed_iter <= ASCII_MAX)) {
-                              } else
-                                  // non-ASCII in the middle of a message - decide what TODO later
-                                  ;
-                          } else
-                          if(m_recv_state == s_state_capture_packet) {
-                          }
-                          l_feed_iter++;
-                          m_recv_iter++;
-                      }
-                  }
-                  // update statistics
-                  m_chr_recv += l_read_size;
-                  m_mem_used  = m_recv_used + m_send_used;
-                  l_rewind    = l_read_size == l_load_size;
-              }
-          } else
-          if(m_recv_state == s_state_recover) {
-              // recover from error or unknown state:
-              // - max buffer size reached
-              // - buffer (re-)allocation failed
-              if(m_recv_packet_size > 0) {
-                  // recover from a failed packet: skip until its end
-                  int l_load_size = std::min(m_recv_size, m_recv_packet_left);
-                  int l_read_size = read(m_recv_descriptor, m_recv_data, l_load_size);
-                  if(l_read_size > 0) {
-                      m_ping_ctr.reset();
-                      m_trip_ctr.reset();
-                      if(l_read_size == m_recv_packet_left) {
-                          m_recv_last = 0;
-                          m_recv_iter = 0;
-                          m_recv_used = 0;
-                          m_recv_packet_size = 0;
-                          m_recv_state = s_state_accept;
-                          m_msg_drop++;
-                      }
-                      m_recv_packet_left -= l_read_size;
-                      m_chr_recv         += l_read_size;
-                      l_rewind            = l_read_size == l_load_size;
-                  }
+bool  gateway::attach(emcstage* stage) noexcept
+{
+      if(stage != nullptr) {
+          if(stage->p_owner == nullptr) {
+              // link the new stage into the gateway list
+              stage->p_owner = this;
+              stage->p_stage_prev = p_stage_tail;
+              stage->p_stage_next = nullptr;
+              if(p_stage_tail != nullptr) {
+                  p_stage_tail->p_stage_next = stage;
               } else
-              if(true) {
-                  // recover from a failed message: skip until an EOL is found
-                  int l_load_size = m_recv_size;
-                  int l_read_size = read(m_recv_descriptor, m_recv_data, l_load_size);
-                  if(l_read_size > 0) {
-                      char* l_read_iter = m_recv_data;
-                      char* l_read_last = m_recv_data + l_read_size;
-                      while(l_read_iter < l_read_last) {
-                          if((*l_read_iter == EOL) ||
-                              (*l_read_iter == RET)) {
-                              m_recv_last = 0;
-                              m_recv_iter = 0;
-                              m_recv_used = 0;
-                              m_recv_state = s_state_accept;
-                              m_msg_drop++;
-                              break;
-                          }
-                          l_read_iter++;
-                      }
-                      m_ping_ctr.reset();
-                      m_trip_ctr.reset();
-                      m_chr_recv += l_read_size;
-                      l_rewind    = l_read_size == l_load_size;
-                  }
-              }
-              // we are already dropping a message
-              m_drop_ctr.reset();
-          } else
-          if(m_recv_state == s_state_drop) {
-              // read in data as to not overrun the FIFOs, but drop it all
-              int  l_load_size = m_recv_size;
-              int  l_read_size = read(m_recv_descriptor, m_recv_data, l_load_size);
-              if(l_read_size > 0) {
-                  m_ping_ctr.reset();
-                  m_trip_ctr.reset();
-              }
-              m_drop_ctr.reset();
-              m_chr_recv += l_read_size;
-              l_rewind    = l_read_size == l_load_size;
+                  p_stage_head = stage;
+              p_stage_tail = stage;
+              // bring the stage up
+              stage->emc_std_attach(this);
+              ++m_stage_count;
+              emc_stage_attach(m_stage_count, stage);
           }
+          return stage->p_owner == this;
       }
-      while(l_rewind);
+      return false;
 }
 
-void  gateway::send_raw(const char* message, int length) noexcept
+bool  gateway::detach(emcstage* stage) noexcept
 {
-      emc_send_raw(message, length);
-}
-
-void  gateway::send_command(const char* command, const sys::argv& arg_list, int arg_index_begin, int arg_index_end) noexcept
-{
-      int l_arg_index = 0;
-      int l_arg_end = 0;
-      int l_arg_last;
-      int l_cmd_count = 0;
-      int l_arg_count = 0;
-      if(command) {
-          if(command[0]) {
-              l_cmd_count = 1;
-          }
-      }
-      if(arg_index_begin >= 0) {
-          l_arg_index = arg_index_begin;
-          if(arg_index_begin >= arg_list.get_count()) {
-              l_arg_end = l_arg_index;
-          } else
-          if(arg_index_end >= arg_list.get_count()) {
-              if(arg_index_end >= arg_index_begin) {
-                  l_arg_end = arg_list.get_count();
+      if(stage != nullptr) {
+          if(stage->p_owner == this) {
+              stage->emc_std_detach(this);
+              if(stage->p_stage_prev != nullptr) {
+                  stage->p_stage_prev->p_stage_next = stage->p_stage_next;
               } else
-                  l_arg_end = arg_index_begin;
-          } else
-              l_arg_end = arg_index_end;
-          l_arg_count = l_arg_end - l_arg_index;
-          if((l_cmd_count > 0) ||
-              (l_arg_count > 0)) {
-              emc_put(emc_tag_request);
-              if(l_cmd_count > 0) {
-                  emc_put(command);
-                  if(l_arg_count > 0) {
-                      emc_put(SPC);
-                  }
-              }
-              l_arg_last = l_arg_end - 1;
-              while(l_arg_index < l_arg_end) {
-                  emc_put(arg_list[l_arg_index].get_text());
-                  if(l_arg_index != l_arg_last) {
-                      emc_put(SPC);
-                  }
-                  l_arg_index++;
-              }
-              emc_put(EOL);
+                  p_stage_head = stage->p_stage_next;
+              if(stage->p_stage_next != nullptr) {
+                  stage->p_stage_next->p_stage_prev = stage->p_stage_prev;
+              } else
+                  p_stage_tail = stage->p_stage_prev;
+              stage->p_stage_next = nullptr;
+              stage->p_stage_prev = nullptr;
+              stage->p_owner = nullptr;
+              --m_stage_count;
+              emc_stage_detach(m_stage_count, stage);
           }
+          return stage->p_owner == nullptr;
       }
-}
-
-void  gateway::send_packet(int, int, std::uint8_t*) noexcept
-{
+      return true;
 }
 
 void  gateway::flush() noexcept
 {
-      if(m_send_last) {
-          int l_save_size = m_send_last - m_send_iter;
-          if(l_save_size > 0) {
-              // optimisation to flush evertything in the output buffer without reparsing if its size is lower than the MTU
-              // and ends with an EOL
-              if(l_save_size < m_send_mtu) {
-                  if(m_send_data[m_send_last - 1] == EOL) {
-                      if(m_send_descriptor != undef) {
-                          m_send_iter += write(m_send_descriptor, m_send_data, l_save_size);
-                      } else
-                          m_send_iter += l_save_size;
-                  }
-              }
-              // split the output buffer in multiple MTU-sized chunks, but avoid splitting a message in the middle if at
-              // all possible
-              // NOTE: not yet properly implemented - not particularly necessary either
-              if(m_send_iter < m_send_last) {
-                  if(m_send_descriptor != undef) {
-                      m_send_iter += write(m_send_descriptor, m_send_data, l_save_size);
-                  } else
-                      m_send_iter += l_save_size;
-              }
-          }
-          if(m_send_iter == m_send_used) {
-              m_send_iter = 0;
-              m_send_last = 0;
-              m_send_used = 0;
-          }
-      }
+      emc_raw_send(reinterpret_cast<std::uint8_t*>(m_send_data), m_send_iter);
+      m_send_iter = 0;
 }
 
 void  gateway::reset() noexcept
 {
-      emc_trip();
 }
 
 void  gateway::sync(float dt) noexcept
@@ -1040,23 +903,26 @@ void  gateway::sync(float dt) noexcept
           emc_send_info_request();
           m_info_ctr.reset();
       }
-      // update the drop timer and check if it is time to drop the incomplete message in the
-      // queue, if present
+      // update the drop timer and check if it is time to drop the incomplete message in the queue, if present
       m_drop_ctr.update(dt);
       if(m_drop_ctr.test(m_gate_drop_time)) {
-          emc_drop();
+          emc_std_drop();
           m_drop_ctr.reset();
       }
       // update the trip timer
       m_trip_ctr.update(dt);
       if(m_trip_ctr.test(m_gate_trip_time)) {
-          m_active_bit = false;
-          m_healty_bit = false;
-          emc_trip();
+          m_ready_bit = false;
+          m_healthy_bit = false;
+          emc_std_trip();
           m_trip_ctr.reset();
       }
-      // ring the `sync()` virtual member
-      emc_sync(dt);
+      // dispatch the sync() signal to the pipeline
+      emcstage* i_stage = p_stage_head;
+      while(i_stage != nullptr) {
+          i_stage->sync(dt);
+          i_stage = i_stage->p_stage_next;
+      }
 }
 
 /*namespace emc*/ }

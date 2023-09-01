@@ -1,5 +1,5 @@
 /** 
-    Copyright (c) 2022, wicked systems
+    Copyright (c) 2023, wicked systems
     All rights reserved.
 
     Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following
@@ -24,12 +24,7 @@
 namespace emc {
 
       service::service() noexcept:
-      m_name(nullptr)
-{
-}
-
-      service::service(const char* name) noexcept:
-      m_name(name)
+      emcstage()
 {
 }
 
@@ -37,44 +32,9 @@ namespace emc {
 {
 }
 
-bool  service::emc_dispatch_attach(session*) noexcept
-{
-      return true;
-}
-
-void  service::emc_dispatch_request(session*, const char*, int) noexcept
-{
-}
-
-int   service::emc_process_request(session*, int, const sys::argv&) noexcept
-{
-      return err_no_request;
-}
-
-void  service::emc_dispatch_response(session*, const char*, int) noexcept
-{
-}
-
-int   service::emc_process_response(session*, int, const sys::argv&) noexcept
-{
-      return err_no_response;
-}
-
-void  service::emc_dispatch_comment(session*, const char*, int) noexcept
-{
-}
-
-void  service::emc_dispatch_packet(session*, int, int, std::uint8_t*) noexcept
-{
-}
-
-void  service::emc_dispatch_detach(session*) noexcept
-{
-}
-
 const char* service::get_name() const noexcept
 {
-      return m_name;
+      return nullptr;
 }
 
 bool  service::get_enabled(bool value) const noexcept

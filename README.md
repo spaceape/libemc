@@ -3,16 +3,135 @@ EMC
 
 # 1. Description
 
-EMC is a support library that encapsulates a lightweight protocol for communication between devices.
+EMC is a library that encapsulates a lightweight protocol for communication between
+devices, as well as the basic software building blocks to support and extend it.
+Core design principles are as follows:
+- human readable I/O, but not exclusively (support high-bandwidth data transfers as well,
+  either directly or by sidecar connections);
+- operate on top of a lower level P2P or broadcast protocol (network, UART or even SPI) but
+  do not monopolize it - i.e. allow other traffic on the interface as well;
+- low overhead;
+- accept both buffered and unbuffered input;
+- allow support for encryption, trancoding, compression, filtering, etc. on the interface.
 
 # 2. Principle of operation
 
-EMC is a broadcast protocol, similar to MQTT. EMCC has no intrinsic concept of a peer, all the communication is directed towards 'the bridge' - the supporting physical layer of the
-communication channel. EMC is agnostic of whether there is one, more or no devices actively listening onto the communication channel.
+EMC processes messages in a _pipeline_, comprising of one or more independent _stages_.
+A _controller_ is responsible for instantiating and managing a pipeline. A controller allows
+an arbitrary number of stages to be attached to it and linked into a pipeline.
+Messages in a pipeline flow from one stage to the next. The default stage object will simply
+relay any inbound messages to the next stage. By overriding this behaviour, stages can be
+defined to perform any custom operation on the inbound or outbound messages or extend the
+base protocol with new services.
 
-## 2.1. Protocol
+## 2.2. Roles
 
-### 2.1.1. Query format
+Depending on the _function_ of the message pipeline - i.e. whether it is meant to _serve_
+particular functionality to a connected device or act as a bridge towards an EMC-enabled
+server, a pipeline can have one of the following major _roles_:
+- _host_ role: serve a set of functions to a connecting instance;
+- _user_ role: drive a connection to a remote EMC-enabled device.
+
+A hybrid, _proxy_ role can be defined by externally connecting two pipelines (one with a _host_
+and one with an _user_ role) back to back.
+
+## 2.2. Message flow
+
+On the forward path, messages flow sequentially from the first to the last stage of the
+pipeline. Each stage is responsible for passing the message along to the next stage.
+
+```
+     Stage1 Stage2 Stage3    ...      StageN
+       |      |      |                  |
+       |----->|      |                  |
+       |      |----->|                  |
+       |      |      |----->            |
+      ...    ...    ...      ...       ...
+       |      |      |            ----->| 
+       
+```
+
+On the return path, messages flow sequentially from the originating stage of the pipeline to
+the previous. Each stage is responsible for passing the return message along to the previous
+stage.
+
+```
+     Stage1 Stage2 Stage3    ...      StageN
+       |      |      |                  |
+       |      |      |            <-----|
+      ...    ...    ...      ...  
+       |      |      |<-----            | 
+       |      |<-----|                  |
+       |<-----|      |                  |
+       
+```
+
+## 2.3. Pipelines
+
+The controller component instantiates a `raw` pipline. As the name implies, raw pipeline
+operates with raw messages - i.e. by default it does not expect inbound messages to comply with
+any particular format - EMC or otherwise. This pipeline is useful for defining custom protocol
+streams (i.e. filter stages, encoding stages, data encryption stages).
+
+The `emc` pipeline, which implements the EMC protocol is branched out from the `raw` pipeline,
+at the end of the transcoding chain (if any).
+An `emc` pipeline can be enabled by attaching a `gateway` stage to the `raw` pipeline.
+
+### 2.3.1. The `raw` pipeline
+
+The `raw` pipeline operates with the following events:
+- `join`: triggered by _some_ controllers or interface stages when a socket or device
+  connection becomes available to a client; Pipelines in the `_host_` role are considered to be implicitely "connected", so this event will is not required to be fired for them;
+- `feed`: inbound query received;
+- `send`: response to an inbound query to be returned (the return flow);
+- `drop`: connection to the server closed or lost.
+
+The events are accessible via the `rawstage` interface:
+```
+  void  emc_raw_join();
+  int   emc_raw_feed(std::uint8_t*, int);
+  int   emc_raw_send(std::uint8_t*, int);
+  void  emc_raw_drop();
+```
+
+### 2.3.2. The `emc` pipeline
+
+The `emc` pipeline operates with the following events:
+
+- `join`: relayed from the raw pipeline when a socket or device connection becomes
+  available to a client; Pipelines in the `_host_` role are considered to be implicitely
+  "connected", so this event will is not required to be fired for them;
+- `connect`: EMC handshake successful (i.e. the `INFO` response received) in the _user_ role;
+- `process_request`: received an inbound query decoded into an EMC request (for pipelines in
+  the _host_ role);
+- `process_response` received an inbound query decoded into an EMC response (for pipelines in
+  the _user_ role);
+- `process_comment`: received a random inbound query that does not conform to either the
+  request or the response syntax;
+- `process_packet`: received a data packet;
+- `return_message`: response to an inbound message to be returned (on the return flow);
+- `return_packet`: response to an inbound packet to be returned (on the return flow);
+- `disconnect`: connection to the server still up, but EMC interface no longer responding;
+- `drop`: connection to the server closed or lost.
+
+
+The events are accessible via the `emcstage` interface:
+```
+  void  emc_std_join();
+  void  emc_std_connect(const char*, const char*, int);
+  int   emc_std_process_request(int, const sys::argv&);
+  int   emc_std_process_response(int, const sys::argv&);
+  void  emc_std_process_comment(const char*, int);
+  int   emc_std_process_packet(int, int, std::uint8_t*);
+  int   emc_std_return_message(const char*, int);
+  int   emc_std_return_packet(int, int, std::uint8_t*);
+  void  emc_std_disconnect();
+  void  emc_std_drop();
+```
+
+# 3. The EMC Protocol
+
+## 3.1. Query format
 ```
   RQID := [A-Za-z?]+      ; request identifier
   RSID := [A-Za-z0-9]+    ; response identifier
@@ -20,9 +139,9 @@ communication channel. EMC is agnostic of whether there is one, more or no devic
   EOL  := [\r\n]
 ```
 
-### 2.1.2. Protocol states
+## 3.2. Protocol states
 
-### 2.1.3. Standard Requests
+## 3.3. Standard Requests
 
 ```
   REQUEST := '?' RQID ... EOL
@@ -34,12 +153,12 @@ communication channel. EMC is agnostic of whether there is one, more or no devic
 - 'g' - the ping request
 - 'z' - the bye request
 
-### 2.1.4. Standard Events
+## 3.4. Standard Events
 
 - ?p+ support_name
 - ?p- support_name
 
-### 2.1.5. Standard Triggers and Responses
+## 3.5. Standard Triggers and Responses
 
 ```
   RESPONSE := ']' RSID ... EOL
@@ -59,7 +178,7 @@ communication channel. EMC is agnostic of whether there is one, more or no devic
   TYPE     := [0-9A-Za-z_-]{1..7}
   ARCHITECTURE := IDENT
   BITS     := [0-9]+
-  ORDER    := "le" | "be"
+  BYTE_ORDER   := "le" | "be"
   MTU      := [0-9A-Fa-f]+
 
   RESPONSE := ']' 'i' SPC PROTOCOL SPC 'v' VERSION SPC NAME SPC TYPE SPC ARCHITECTURE '_' BITS '_' ORDER SPC MTU EOL
@@ -74,15 +193,15 @@ communication channel. EMC is agnostic of whether there is one, more or no devic
   RESPONSE := ']' 'g' SPC XXXXXXXX EOL
 ```
 
-### '0' - OK response
+### '0' - The `OK` response
 
 ### 'e' - the error response
 
-### 'z' - the bye response
+### 'z' - the `BYE` response
 
-### 2.1.6. Services
+## 3.6. Services
 
-### 2.1.7. Channels
+## 3.7. Channels
 ```
   HEX := [0-9A-Fa-f]
   SIZE := HEX{3}
@@ -90,9 +209,7 @@ communication channel. EMC is agnostic of whether there is one, more or no devic
 ```
   CHANNEL = EOF - C
 
-## 2.2. Message flows
-
-### 2.2.1. The Sync sequence
+## 3.8. The Sync sequence
 ```
 < INFO
 < + <service_0> <properties>...
@@ -101,9 +218,28 @@ communication channel. EMC is agnostic of whether there is one, more or no devic
 < + <service_N> <properties>...
 < READY
 ```
-### 2.2.2. 
 
-# 3. API
+# 4. API
+
+[ reactor ]
+  session
+      stage - stage - stage
+              -----
+              controller
+                  
+
+[ gateway ] ---> [ raw_stage_t ]
+                 [   machine   ]
+                        |
+                 [ emc_stage_t ]
+                        |
+                 [ emc_stage_t ]
+                        |
+                       ...
+                        |
+                 [ emc_stage_t ]
+
+
 
 ## 3.1. Core components
 
@@ -111,13 +247,13 @@ communication channel. EMC is agnostic of whether there is one, more or no devic
 
 ### 3.1.2. `session`
 
-### 3.1.3. `gateway`
+### 3.1.3. `machine`
 
 ### 3.1.4. `monitor`
 
 ## 3.2. Helper classes
 
-### 3.2.1. `host`
+### 3.2.1. `gateway`
 
 ### 3.2.2. `command`
 
