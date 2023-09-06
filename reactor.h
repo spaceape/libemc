@@ -1,7 +1,7 @@
 #ifndef emc_reactor_h
 #define emc_reactor_h
 /** 
-    Copyright (c) 2022, wicked systems
+    Copyright (c) 2023, wicked systems
     All rights reserved.
 
     Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following
@@ -22,74 +22,72 @@
     EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 **/
 #include "emc.h"
-#include "protocol.h"
-#include "gateway.h"
-#include "gateway.h"
-#include <sys.h>
-#include <memory>
-#include <mmi.h>
-#include <mmi/resource.h>
-#include <mmi/flat_list.h>
-#include <mmi/flat_map.h>
-#include "session.h"
+#include "pipeline.h"
+#include "error.h"
 
 namespace emc {
 
 /* reactor
- * integrated base class for an EMC server
+   base class for a raw pipeline
 */
 class reactor
 {
-  int     m_poll_descriptor;
-  int     m_poll_count;
-
-  private:
-  mmi::flat_list<gateway>      m_interface_list;
-  mmi::flat_map<int, host*>    m_interface_descriptor_map;
-  mmi::flat_map<int, session*> m_session_descriptor_map;
-  sys::time_t                  m_sync_time;
-
-  int     m_interface_count;
-  int     m_interface_limit;
-  int     m_session_count;
-  int     m_session_limit;
-
-  bool    m_ready_bit;
-  bool    m_resume_bit;
-
-  private:
-          bool      ctl_poll_attach(int) noexcept;
-          bool      ctl_poll_detach(int) noexcept;
-          host*     ctl_interface_find(int) noexcept;
-          session*  ctl_session_spawn(int, host*) noexcept;
-          bool      ctl_session_attach(int, session*) noexcept;
-          void      ctl_session_drop(int) noexcept;
-          session*  ctl_session_find(int) noexcept;
-          void      ctl_session_feed(session*) noexcept;
-          void      ctl_session_suspend(int, session*) noexcept;
-
-  protected:
-  virtual session*  emc_spawn_session(host*, int) noexcept;
-  virtual bool      emc_suspend_session(session*) noexcept;
-  virtual void      emc_sync(float) noexcept;
-
-  protected:
-          bool      emc_attach_session(session*) noexcept;
-          // int       ctl_inject_session_request(session*, const char*, int) noexcept;
-          void      emc_detach_session(session*) noexcept;
-          host*     emc_attach_interface(host::type, const char*, unsigned int = host::port_undef) noexcept;
-          void      emc_detach_interface(host*) noexcept;
+  rawstage*     p_stage_head;
+  rawstage*     p_stage_tail;
+  int           m_stage_count;
 
   public:
-          reactor() noexcept;
+  enum class role {
+    undef,
+    host,
+    user
+  };
+
+  static constexpr unsigned int emi_none = 0u;
+  static constexpr unsigned int emi_ring_network = 0u;
+  static constexpr unsigned int emi_ring_machine = 1u;
+  static constexpr unsigned int emi_ring_session = 2u;
+  static constexpr unsigned int emi_ring_process = 3u;
+
+  static constexpr unsigned int emi_ring_flags = 
+      emi_ring_network | 
+      emi_ring_machine | 
+      emi_ring_session |
+      emi_ring_process;
+
+  private:
+  static constexpr unsigned int emi_default_flags = emi_none;
+  static constexpr unsigned int emi_reactor_flags = emi_ring_flags;
+
+  private:
+  role          m_role;
+  unsigned int  m_properties;
+
+  protected:
+  virtual void  ems_stage_attach(int, rawstage*) noexcept;
+          void  emc_join() noexcept;
+          void  emc_feed(std::uint8_t*, int) noexcept;
+  virtual int   emc_recv(std::uint8_t*, int) noexcept;
+          void  emc_drop() noexcept;
+  virtual void  ems_stage_detach(int, rawstage*) noexcept;
+
+  friend  class rawstage;
+  public:
+          reactor(role, unsigned int = emi_default_flags) noexcept;
           reactor(const reactor&) noexcept = delete;
           reactor(reactor&&) noexcept = delete;
   virtual ~reactor();
-          bool      resume() noexcept;
-  virtual const char*   get_machine_name() const noexcept;
-  virtual const char*   get_machine_type() const noexcept;
-          bool      suspend() noexcept;
-          void      sync(const sys::time_t&, const sys::delay_t&) noexcept;
+          bool      has_role(role) const noexcept;
+          role      get_role() const noexcept;
+          bool      has_properties(unsigned int) const noexcept;
+          auto      get_properties() const noexcept -> unsigned int;
+          bool      attach(rawstage*) noexcept;
+          bool      detach(rawstage*) noexcept;
+  virtual bool      attach(emcstage*) noexcept;
+  virtual bool      detach(emcstage*) noexcept;
+  virtual auto      get_system_name() noexcept -> const char*;
+  virtual auto      get_system_type() noexcept -> const char*;
+          void      sync(float) noexcept;
           reactor&  operator=(const reactor&) noexcept = delete;
           reactor&  operator=(reactor&&) noexcept = delete;
 };

@@ -20,7 +20,7 @@
     EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 **/
 #include "pipeline.h"
-#include "controller.h"
+#include "reactor.h"
 #include "gateway.h"
 #include "error.h"
 
@@ -39,7 +39,7 @@ namespace emc {
 {
 }
 
-void  rawstage::emc_raw_attach(controller*) noexcept
+void  rawstage::emc_raw_attach(reactor*) noexcept
 {
 }
 
@@ -76,7 +76,7 @@ void  rawstage::emc_raw_drop() noexcept
       }
 }
 
-void  rawstage::emc_raw_detach(controller*) noexcept
+void  rawstage::emc_raw_detach(reactor*) noexcept
 {
 }
 

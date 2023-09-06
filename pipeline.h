@@ -36,18 +36,18 @@ class rawstage
   rawstage*     p_stage_next;
 
   protected:
-  controller*   p_owner;
+  reactor*      p_owner;
 
   protected:
-  virtual void  emc_raw_attach(controller*) noexcept;
+  virtual void  emc_raw_attach(reactor*) noexcept;
   virtual void  emc_raw_join() noexcept;
   virtual int   emc_raw_feed(std::uint8_t*, int) noexcept;
   virtual int   emc_raw_send(std::uint8_t*, int) noexcept;
   virtual void  emc_raw_drop() noexcept;
-  virtual void  emc_raw_detach(controller*) noexcept;
+  virtual void  emc_raw_detach(reactor*) noexcept;
 
   protected:
-  friend  class controller;
+  friend  class reactor;
 
   public:
           rawstage() noexcept;

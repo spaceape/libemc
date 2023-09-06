@@ -17,8 +17,8 @@ Core design principles are as follows:
 # 2. Principle of operation
 
 EMC processes messages in a _pipeline_, comprising of one or more independent _stages_.
-A _controller_ is responsible for instantiating and managing a pipeline. A controller allows
-an arbitrary number of stages to be attached to it and linked into a pipeline.
+A _reactor_ is responsible for instantiating and managing a pipeline. A reactor allows an
+arbitrary number of stages to be attached to it and linked into a pipeline.
 Messages in a pipeline flow from one stage to the next. The default stage object will simply
 relay any inbound messages to the next stage. By overriding this behaviour, stages can be
 defined to perform any custom operation on the inbound or outbound messages or extend the
@@ -68,7 +68,7 @@ stage.
 
 ## 2.3. Pipelines
 
-The controller component instantiates a `raw` pipline. As the name implies, raw pipeline
+The reactor component instantiates a `raw` pipline. As the name implies, raw pipeline
 operates with raw messages - i.e. by default it does not expect inbound messages to comply with
 any particular format - EMC or otherwise. This pipeline is useful for defining custom protocol
 streams (i.e. filter stages, encoding stages, data encryption stages).
@@ -80,7 +80,7 @@ An `emc` pipeline can be enabled by attaching a `gateway` stage to the `raw` pip
 ### 2.3.1. The `raw` pipeline
 
 The `raw` pipeline operates with the following events:
-- `join`: triggered by _some_ controllers or interface stages when a socket or device
+- `join`: triggered by _some_ reactors or interface stages when a socket or device
   connection becomes available to a client; Pipelines in the `_host_` role are considered to be implicitely "connected", so this event will is not required to be fired for them;
 - `feed`: inbound query received;
 - `send`: response to an inbound query to be returned (the return flow);
@@ -128,6 +128,18 @@ The events are accessible via the `emcstage` interface:
   void  emc_std_disconnect();
   void  emc_std_drop();
 ```
+
+### 2.3.3. Rings
+
+- `emi_ring_session`: peer is attached to the same session - shm and ipc mechanisms available, filesystem paths can be relative to session
+- `emi_ring_machine`: peer is attached to the same machine - shm and ipc mechanisms available, filesystem paths should be absolute
+- `emi_ring_network`: peer is running remotely, no shm, ipc or direct filesystem access available between the two
+
+
+### 2.3.4. Features
+### 2.3.5. Services
+### 2.3.6. Sessions (EMP documentation)
+### 2.3.6. Controllers (Session Services - EMP documentation)
 
 # 3. The EMC Protocol
 
@@ -225,7 +237,7 @@ The events are accessible via the `emcstage` interface:
   session
       stage - stage - stage
               -----
-              controller
+              reactor
                   
 
 [ gateway ] ---> [ raw_stage_t ]

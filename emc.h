@@ -1,5 +1,5 @@
-#ifndef emc_interface_h
-#define emc_interface_h
+#ifndef emc_h
+#define emc_h
 /**
     Copyright (c) 2022, wicked systems
     All rights reserved.
@@ -40,7 +40,7 @@ enum host_type
   net_name            // gateway reffers to a network gateway name
 };
 
-class controller;
+class reactor;
 class gateway;
 class service;
 class monitor;

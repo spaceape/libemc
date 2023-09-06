@@ -150,11 +150,12 @@ class gateway: public rawstage
 
           int     emc_send_info_response() noexcept;
           void    emc_send_info_request() noexcept;
-          void    emc_send_service_response() noexcept;
+          int     emc_send_service_response() noexcept;
           void    emc_send_ping_request() noexcept;
-          void    emc_send_pong_response() noexcept;
-          void    emc_send_sync() noexcept;
-          void    emc_send_help() noexcept;
+          int     emc_send_pong_response() noexcept;
+          int     emc_send_bye_response() noexcept;
+          int     emc_send_sync_response() noexcept;
+          int     emc_send_help_response() noexcept;
           void    emc_send_raw(const char*, int) noexcept;
           int     emc_send_error(int, const char* = nullptr, ...) noexcept;
 
@@ -175,12 +176,12 @@ class gateway: public rawstage
           int     emc_get_send_mtu() const noexcept;
           bool    emc_set_send_mtu(int) noexcept;
 
-  virtual void    emc_raw_attach(controller*) noexcept override;
+  virtual void    emc_raw_attach(reactor*) noexcept override;
   virtual void    emc_raw_join() noexcept override;
   virtual int     emc_raw_feed(std::uint8_t*, int) noexcept override;
   virtual int     emc_raw_send(std::uint8_t*, int) noexcept override;
   virtual void    emc_raw_drop() noexcept override;
-  virtual void    emc_raw_detach(controller*) noexcept override;
+  virtual void    emc_raw_detach(reactor*) noexcept override;
 
   protected:
   virtual int     emc_process_request(int, const sys::argv&) noexcept;

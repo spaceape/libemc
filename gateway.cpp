@@ -20,7 +20,7 @@
     EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 **/
 #include "gateway.h"
-#include "controller.h"
+#include "reactor.h"
 #include <config.h>
 #include <cstring>
 #include <limits>
@@ -189,19 +189,22 @@ int   gateway::emc_feed_request(char* message, int length) noexcept
       if(l_argc > 0) {
           // give `emc_process_request()` priority in handling the request
           l_rc = emc_process_request(l_argc, l_argv);
-          // ...or otherwise handle standard requests here
+          // ...or otherwise handle the protocol-mandated requests here
           if(l_rc == err_no_request) {
-              // int l_tag = m_args[0][0];
-              // switch(l_tag) {
-              //     case emc_request_info:
-              //         l_rc = emc_send_info_response();
-              //         break;
-              //     default:
-              //         l_rc = emc_std_forward_request(l_argc, m_args);
-              //         break;
-              // }
-              if(l_rc == err_no_response) {
-                  l_rc = emc_std_forward_request(l_argc, m_args);
+              if(l_argc == 1) {
+                  if(std::strcmp(l_argv[0], "i") == 0) {
+                      l_rc = emc_send_info_response();
+                  } else
+                  if(std::strcmp(l_argv[0], "g") == 0) {
+                      l_rc = emc_send_pong_response();
+                  } else
+                  if(std::strcmp(l_argv[0], "g") == 0) {
+                      l_rc = emc_send_bye_response();
+                  }
+              }
+              // forward the request to the next stage
+              if(l_rc == err_no_request) {
+                  l_rc = emc_std_forward_request(l_argc, l_argv);
               }
           }
       }
@@ -382,26 +385,35 @@ void  gateway::emc_send_info_request() noexcept
       );
 }
 
-void  gateway::emc_send_service_response() noexcept
+int   gateway::emc_send_service_response() noexcept
 {
+      return err_okay;
 }
 
 void  gateway::emc_send_ping_request() noexcept
 {
 }
 
-void  gateway::emc_send_pong_response() noexcept
+int   gateway::emc_send_pong_response() noexcept
 {
+      return err_okay;
 }
 
-void  gateway::emc_send_sync() noexcept
+int   gateway::emc_send_bye_response() noexcept
+{
+      return err_okay;
+}
+
+int   gateway::emc_send_sync_response() noexcept
 {
       emc_send_info_response();
       emc_send_service_response();
+      return err_okay;
 }
 
-void  gateway::emc_send_help() noexcept
+int   gateway::emc_send_help_response() noexcept
 {
+      return err_okay;
 }
 
 void  gateway::emc_send_raw(const char* message, int length) noexcept
@@ -560,20 +572,20 @@ bool  gateway::emc_set_send_mtu(int mtu) noexcept
       return false;
 }
 
-void  gateway::emc_raw_attach(controller* controller) noexcept
+void  gateway::emc_raw_attach(reactor* reactor) noexcept
 {
-      // get the gateway information from the controller instance
-      if((controller != nullptr) &&
-          (controller == p_owner)) {
+      // get the gateway information from the reactor instance
+      if((reactor != nullptr) &&
+          (reactor == p_owner)) {
           if((m_user_role == false) &&
               (m_host_role == false)) {
-              if(controller->has_role(controller::role::user)) {
+              if(reactor->has_role(reactor::role::user)) {
                   m_user_role = true;
                   m_msg_recv = 0;
                   m_msg_drop = 0;
                   m_msg_tmit = 0;
               } else
-              if(controller->has_role(controller::role::host)) {
+              if(reactor->has_role(reactor::role::host)) {
                   m_host_role = true;
                   m_msg_recv = 0;
                   m_msg_drop = 0;
@@ -582,7 +594,7 @@ void  gateway::emc_raw_attach(controller* controller) noexcept
                   m_ready_bit = true;
                   m_healthy_bit = true;
                   m_recv_state = s_state_accept;
-                  emc_send_sync();
+                  emc_send_sync_response();
               }
           }
       }
@@ -591,7 +603,7 @@ void  gateway::emc_raw_attach(controller* controller) noexcept
 void  gateway::emc_raw_join() noexcept
 {
       if(m_ready_bit == false) {
-          // reset the controller state
+          // reset the reactor state
           m_msg_recv = 0;
           m_msg_drop = 0;
           m_msg_tmit = 0;
@@ -706,10 +718,10 @@ int   gateway::emc_raw_feed(std::uint8_t* data, int size) noexcept
                               if(m_host_role) {
                                   char* p_next = p_recv + 1;
                                   if((*p_recv == emc_tag_sync) && (*p_next == NUL)) {
-                                      emc_send_sync();
+                                      emc_send_sync_response();
                                   } else
                                   if((*p_recv == emc_tag_help) && (*p_next == NUL)) {
-                                      emc_send_help();
+                                      emc_send_help_response();
                                   } else
                                       emc_feed_request(p_recv, l_recv_length);
                               } else
@@ -812,7 +824,7 @@ void  gateway::emc_raw_drop() noexcept
       m_gate_info[0] = 0;
 }
 
-void  gateway::emc_raw_detach(controller*) noexcept
+void  gateway::emc_raw_detach(reactor*) noexcept
 {
 }
 

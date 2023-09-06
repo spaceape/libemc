@@ -26,15 +26,15 @@ set(inc
   emc.h protocol.h error.h
   timer.h 
   pipeline.h
-  controller.h monitor.h service.h
-  session.h 
+  gateway.h monitor.h service.h
+  reactor.h 
 )
 
 set(srcs
   timer.cpp
   pipeline.cpp
   gateway.cpp monitor.cpp service.cpp
-  controller.cpp
+  reactor.cpp
 )
 
 configure_file(config.in.h ${CMAKE_CURRENT_BINARY_DIR}/config.h)
