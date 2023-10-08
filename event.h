@@ -1,5 +1,5 @@
-#ifndef emc_error_h
-#define emc_error_h
+#ifndef emc_event_h
+#define emc_event_h
 /** 
     Copyright (c) 2022, wicked systems
     All rights reserved.
@@ -22,45 +22,45 @@
     EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 **/
 #include "emc.h"
-#include <error.h>
 
 namespace emc {
 
-/* err_okay
-   no error, all went smooth
+/* ev_join
+   signal the reactor that the endpoint connection is up
 */
-constexpr int  err_okay = ::err_okay;
-constexpr char msg_ready[] = "READY";
+static constexpr int  ev_join = 1;
 
-/* err_parse
-   request could not be parsed 
+/* ev_drop
+   signal the reactor that the endpoint connection is down
 */
-constexpr int  err_parse = -127;
-constexpr char msg_parse[] = "INVALID REQUEST";
+static constexpr int  ev_drop = 2;
 
-/* err_bad_request
-   request is generally erroneous
+/* ev_hup
+   signal the reactor that the endpoint has hung up
 */
-constexpr int  err_bad_request = -2;
-constexpr char msg_bad_request[] = "BAD REQUEST";
+static constexpr int  ev_hup = 3;
 
-
-/* err_no_request
-   request could not be handled by any attached modules
+/* ev_progess
 */
-constexpr int  err_no_request = -1;
-constexpr char msg_no_request[] = "COMMAND NOT FOUND";
+static constexpr int  ev_progress = 13;
 
-/* err_no_response
-   response could not be handled by the super-session
+/* ev_soft_fault
+   generic fault in one of the stages
 */
-constexpr int  err_no_response = -1;
-constexpr char msg_no_response[] = "COMMAND NOT FOUND";
+static constexpr int  ev_soft_fault = 14;
 
-/* err_fail
+/* ev_hard_fault
+   generic fault in one of the stages; not recoverable, should end up with a suspend
 */
-constexpr int  err_fail = -128;
-constexpr char msg_fail[] = "INTERNAL ERROR";
+static constexpr int  ev_hard_fault = 15;
+
+/* ev_user_base
+*/
+static constexpr int  ev_user_base = 16;
+
+/* ev_user_last
+*/
+static constexpr int  ev_user_last = 255;
 
 /*namespace emc*/ }
 #endif

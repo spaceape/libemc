@@ -37,16 +37,28 @@ namespace emc {
 
       rawstage::~rawstage() noexcept
 {
+      if(p_owner != nullptr) {
+          p_owner->detach(this);
+      }
 }
 
 void  rawstage::emc_raw_attach(reactor*) noexcept
 {
 }
 
+bool  rawstage::emc_raw_resume(reactor*) noexcept
+{
+      return true;
+}
+
 void  rawstage::emc_raw_join() noexcept
 {
+}
+
+void  rawstage::emc_raw_recv(std::uint8_t* data, int size) noexcept
+{
       if(p_stage_next != nullptr) {
-          p_stage_next->emc_raw_join();
+          p_stage_next->emc_raw_recv(data, size);
       }
 }
 
@@ -64,23 +76,31 @@ int   rawstage::emc_raw_send(std::uint8_t* data, int size) noexcept
           return p_stage_prev->emc_raw_send(data, size);
       } else
       if(p_owner) {
-          return p_owner->emc_recv(data, size);
+          return p_owner->emc_raw_recv(data, size);
       } else
           return err_fail;
 }
 
+void  rawstage::emc_raw_suspend(reactor*) noexcept
+{
+}
+
+void  rawstage::emc_raw_event(int id, void* stage) noexcept
+{
+      if(p_owner) {
+          p_owner->emc_raw_event(id, stage);
+      }
+}
+
 void  rawstage::emc_raw_drop() noexcept
 {
-      if(p_stage_prev != nullptr) {
-          p_stage_prev->emc_raw_drop();
-      }
 }
 
 void  rawstage::emc_raw_detach(reactor*) noexcept
 {
 }
 
-void  rawstage::sync(float) noexcept
+void  rawstage::emc_raw_sync(float) noexcept
 {
 }
 
@@ -95,21 +115,36 @@ void  rawstage::sync(float) noexcept
 
       emcstage::~emcstage() noexcept
 {
+      if(p_owner != nullptr) {
+          p_owner->detach(this);
+      }
 }
 
 void  emcstage::emc_std_attach(gateway*) noexcept
 {
 }
 
+bool  emcstage::emc_std_resume(gateway*) noexcept
+{
+      return true;
+}
+
 void  emcstage::emc_std_join() noexcept
 {
+}
+
+void  emcstage::emc_std_process_message(const char* message, int length) noexcept
+{
       if(p_stage_next != nullptr) {
-          p_stage_next->emc_std_join();
+          p_stage_next->emc_std_process_message(message, length);
       }
 }
 
-void  emcstage::emc_std_connect(const char*, const char*, int) noexcept
+void  emcstage::emc_std_process_error(const char* message, int length) noexcept
 {
+      if(p_stage_next != nullptr) {
+          p_stage_next->emc_std_process_error(message, length);
+      }
 }
 
 int   emcstage::emc_std_process_request(int argc, const sys::argv& argv) noexcept
@@ -162,17 +197,18 @@ int   emcstage::emc_std_return_packet(int channel, int size, std::uint8_t* data)
           return err_fail;
 }
 
-void  emcstage::emc_std_disconnect() noexcept
-{
-      if(p_stage_prev != nullptr) {
-          p_stage_prev->emc_std_disconnect();
-      }
-}
-
 void  emcstage::emc_std_drop() noexcept
 {
-      if(p_stage_prev != nullptr) {
-          p_stage_prev->emc_std_drop();
+}
+
+void  emcstage::emc_std_suspend(gateway*) noexcept
+{
+}
+
+void  emcstage::emc_std_event(int id, void* stage) noexcept
+{
+      if(p_owner != nullptr) {
+          p_owner->emc_std_event(id, stage);
       }
 }
 
@@ -180,7 +216,7 @@ void  emcstage::emc_std_detach(gateway*) noexcept
 {
 }
 
-void  emcstage::sync(float) noexcept
+void  emcstage::emc_std_sync(float) noexcept
 {
 }
 

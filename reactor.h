@@ -40,10 +40,11 @@ class reactor
   enum class role {
     undef,
     host,
-    user
+    user,
+    proxy
   };
 
-  static constexpr unsigned int emi_none = 0u;
+  static constexpr unsigned int emi_ring_auto = 0u;
   static constexpr unsigned int emi_ring_network = 0u;
   static constexpr unsigned int emi_ring_machine = 1u;
   static constexpr unsigned int emi_ring_session = 2u;
@@ -56,37 +57,46 @@ class reactor
       emi_ring_process;
 
   private:
-  static constexpr unsigned int emi_default_flags = emi_none;
-  static constexpr unsigned int emi_reactor_flags = emi_ring_flags;
+  role          m_role;
+  bool          m_resume_bit;
+  bool          m_connect_bit;
 
   private:
-  role          m_role;
-  unsigned int  m_properties;
+          bool  ems_resume_at(rawstage*) noexcept;
+          void  ems_suspend_at(rawstage*) noexcept;
+          void  ems_dispatch_join() noexcept;
+          void  ems_dispatch_drop() noexcept;
 
   protected:
-  virtual void  ems_stage_attach(int, rawstage*) noexcept;
-          void  emc_join() noexcept;
-          void  emc_feed(std::uint8_t*, int) noexcept;
-  virtual int   emc_recv(std::uint8_t*, int) noexcept;
-          void  emc_drop() noexcept;
-  virtual void  ems_stage_detach(int, rawstage*) noexcept;
+  virtual bool  emc_raw_resume() noexcept;
+          void  emc_raw_join() noexcept;
+          void  emc_raw_feed(std::uint8_t*, int) noexcept;
+  virtual int   emc_raw_recv(std::uint8_t*, int) noexcept;
+          void  emc_raw_drop() noexcept;
+  virtual void  emc_raw_event(int, void*) noexcept;
+  virtual void  emc_raw_suspend() noexcept;
+  virtual void  ems_sync(float) noexcept;
 
   friend  class rawstage;
   public:
-          reactor(role, unsigned int = emi_default_flags) noexcept;
+          reactor(role) noexcept;
           reactor(const reactor&) noexcept = delete;
           reactor(reactor&&) noexcept = delete;
   virtual ~reactor();
           bool      has_role(role) const noexcept;
           role      get_role() const noexcept;
-          bool      has_properties(unsigned int) const noexcept;
-          auto      get_properties() const noexcept -> unsigned int;
           bool      attach(rawstage*) noexcept;
           bool      detach(rawstage*) noexcept;
   virtual bool      attach(emcstage*) noexcept;
   virtual bool      detach(emcstage*) noexcept;
   virtual auto      get_system_name() noexcept -> const char*;
   virtual auto      get_system_type() noexcept -> const char*;
+          bool      has_ring_flags(unsigned int) const noexcept;
+  virtual auto      get_ring_flags() const noexcept -> unsigned int;
+          bool      get_valid_state() const noexcept;
+          bool      get_resume_state(bool = true) const noexcept;
+          bool      get_connect_state(bool = true) const noexcept;
+          int       get_stage_count() const noexcept;
           void      sync(float) noexcept;
           reactor&  operator=(const reactor&) noexcept = delete;
           reactor&  operator=(reactor&&) noexcept = delete;

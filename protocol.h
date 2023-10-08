@@ -32,6 +32,8 @@ constexpr char emc_tag_response = ']';
 constexpr char emc_tag_sync = '@';
 
 constexpr char emc_request_info = 'i';
+constexpr char emc_request_ping = 'g';
+constexpr char emc_request_bye = 'z';
 
 constexpr char emc_response_info = 'i';
 constexpr char emc_response_service = 's';

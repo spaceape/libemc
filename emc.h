@@ -25,21 +25,6 @@
 
 namespace emc {
 
-/* host_type
-   accompanies an address string and describes its meaning
-*/
-enum host_type
-{
-  none,
-  file,               // gateway reffers to a filesystem entry
-  stdio,              // gateway reffers to stdin
-  tty,                // gateway reffers serial port
-  socket,             // gateway reffers to a unix socket
-  net_ipv4_address,   // gateway reffers to a network IPv4 address
-  net_ipv6_address,   // gateway reffers to a network IPv6 address
-  net_name            // gateway reffers to a network gateway name
-};
-
 class reactor;
 class gateway;
 class service;

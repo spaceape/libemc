@@ -59,7 +59,7 @@ stage.
      Stage1 Stage2 Stage3    ...      StageN
        |      |      |                  |
        |      |      |            <-----|
-      ...    ...    ...      ...  
+      ...    ...    ...      ...       ...
        |      |      |<-----            | 
        |      |<-----|                  |
        |<-----|      |                  |
@@ -80,18 +80,24 @@ An `emc` pipeline can be enabled by attaching a `gateway` stage to the `raw` pip
 ### 2.3.1. The `raw` pipeline
 
 The `raw` pipeline operates with the following events:
-- `join`: triggered by _some_ reactors or interface stages when a socket or device
-  connection becomes available to a client; Pipelines in the `_host_` role are considered to be implicitely "connected", so this event will is not required to be fired for them;
-- `feed`: inbound query received;
-- `send`: response to an inbound query to be returned (the return flow);
+- `join`: triggered by _some_ reactors or interface stages when a socket or device connection becomes available to a client;
+   Pipelines in the `_host_` or `proxy` roles are considered to be implicitely connected, so this event will not be fired for them;
+- `recv`: inbound message received onto the aux channel (typically `stderr`);
+- `feed`: inbound message received;
+- `send`: outbound message to be sent out on the return flow;
 - `drop`: connection to the server closed or lost.
 
 The events are accessible via the `rawstage` interface:
 ```
-  void  emc_raw_join();
-  int   emc_raw_feed(std::uint8_t*, int);
-  int   emc_raw_send(std::uint8_t*, int);
-  void  emc_raw_drop();
+  bool  emc_raw_resume(reactor*): non-negociable resume callback
+  void  emc_raw_join()
+  void  emc_raw_recv(std::uint8_t*, int)
+  int   emc_raw_feed(std::uint8_t*, int)
+  int   emc_raw_send(std::uint8_t*, int)
+  void  emc_raw_drop()
+  void  emc_raw_suspend(reactor*)
+  void  emc_raw_event(int, void*)
+  void  emc_raw_sync(float)
 ```
 
 ### 2.3.2. The `emc` pipeline
@@ -102,6 +108,8 @@ The `emc` pipeline operates with the following events:
   available to a client; Pipelines in the `_host_` role are considered to be implicitely
   "connected", so this event will is not required to be fired for them;
 - `connect`: EMC handshake successful (i.e. the `INFO` response received) in the _user_ role;
+- `process_message`: process inbound message in string form
+- `process_error`: process inbound stderr message in the string form
 - `process_request`: received an inbound query decoded into an EMC request (for pipelines in
   the _host_ role);
 - `process_response` received an inbound query decoded into an EMC response (for pipelines in
@@ -117,24 +125,28 @@ The `emc` pipeline operates with the following events:
 
 The events are accessible via the `emcstage` interface:
 ```
-  void  emc_std_join();
-  void  emc_std_connect(const char*, const char*, int);
-  int   emc_std_process_request(int, const sys::argv&);
-  int   emc_std_process_response(int, const sys::argv&);
-  void  emc_std_process_comment(const char*, int);
-  int   emc_std_process_packet(int, int, std::uint8_t*);
-  int   emc_std_return_message(const char*, int);
-  int   emc_std_return_packet(int, int, std::uint8_t*);
-  void  emc_std_disconnect();
-  void  emc_std_drop();
+  bool  emc_std_resume(gateway*) noexcept
+  void  emc_std_join()
+  void  emc_std_process_message(const char*, int)
+  void  emc_std_process_error(const char*, int)
+  int   emc_std_process_request(int, const sys::argv&)
+  int   emc_std_process_response(int, const sys::argv&)
+  void  emc_std_process_comment(const char*, int)
+  int   emc_std_process_packet(int, int, std::uint8_t*)
+  int   emc_std_return_message(const char*, int)
+  int   emc_std_return_packet(int, int, std::uint8_t*)
+  void  emc_std_drop()
+  void  emc_std_suspend(gateway*) noexcept
+  void  emc_std_event(int, void*)
+  void  emc_std_sync(float)
 ```
 
 ### 2.3.3. Rings
 
-- `emi_ring_session`: peer is attached to the same session - shm and ipc mechanisms available, filesystem paths can be relative to session
-- `emi_ring_machine`: peer is attached to the same machine - shm and ipc mechanisms available, filesystem paths should be absolute
-- `emi_ring_network`: peer is running remotely, no shm, ipc or direct filesystem access available between the two
-
+- `emi_ring_network`: peer is running remotely, no shm, ipc or direct filesystem access available between peers
+- `emi_ring_machine`: peer is attached to the same machine - shm and ipc mechanisms available, filesystem paths are absolute and restricted
+- `emi_ring_session`: peer is attached to the same session - shm and ipc mechanisms available, filesystem paths can be relative to the session path
+- `emi_ring_process`: peer is within the same address space
 
 ### 2.3.4. Features
 ### 2.3.5. Services
@@ -231,58 +243,40 @@ The events are accessible via the `emcstage` interface:
 < READY
 ```
 
-# 4. API
+<!-- # 4. API
 
-[ reactor ]
-  session
-      stage - stage - stage
-              -----
-              reactor
-                  
+ [+] rawstage
+     [+] gateway
+         - emcstage* stage_head
+         - emcstage* stage_tail
 
-[ gateway ] ---> [ raw_stage_t ]
-                 [   machine   ]
-                        |
-                 [ emc_stage_t ]
-                        |
-                 [ emc_stage_t ]
-                        |
-                       ...
-                        |
-                 [ emc_stage_t ]
+ [+] emcstage
+     [-] service
+     [-] monitor
 
+ [+] reactor
+     - rawstage* stage_head
+     - rawstage* stage_tail
 
+ [+] timer
+    
 
-## 3.1. Core components
+## 4.1. Core components
 
-### 3.1.1. `reactor`
+### 4.1.1. `reactor`
 
-### 3.1.2. `session`
+### 4.1.2. `session`
 
-### 3.1.3. `machine`
+### 4.1.3. `machine`
 
-### 3.1.4. `monitor`
+### 4.1.4. `monitor`
 
-## 3.2. Helper classes
+## 4.2. Helper classes
 
-### 3.2.1. `gateway`
+### 4.2.1. `gateway`
 
-### 3.2.2. `command`
+### 4.2.2. `command`
 
-### 3.2.3. `timer`
+### 4.2.3. `timer`
 
-## 3.3. Error reporting
-
-<!-- # 3. Protocol
-
-## 3.1. Services
-
-Features that the server exposes to the client
-
-## 3.2. Support
-
-Servives that are made available to the server through the bridge
-
-## 3.3. Sessions
-
--->
+## 4.3. Error reporting -->

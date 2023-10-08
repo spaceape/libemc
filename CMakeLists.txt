@@ -23,7 +23,7 @@ include_directories(
 set(EMC_SDK_DIR ${HOST_SDK_DIR}/${NAME})
 
 set(inc
-  emc.h protocol.h error.h
+  emc.h protocol.h event.h error.h
   timer.h 
   pipeline.h
   gateway.h monitor.h service.h

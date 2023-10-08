@@ -40,11 +40,16 @@ class rawstage
 
   protected:
   virtual void  emc_raw_attach(reactor*) noexcept;
+  virtual bool  emc_raw_resume(reactor*) noexcept;
   virtual void  emc_raw_join() noexcept;
+  virtual void  emc_raw_recv(std::uint8_t*, int) noexcept;
   virtual int   emc_raw_feed(std::uint8_t*, int) noexcept;
   virtual int   emc_raw_send(std::uint8_t*, int) noexcept;
   virtual void  emc_raw_drop() noexcept;
+  virtual void  emc_raw_suspend(reactor*) noexcept;
+  virtual void  emc_raw_event(int, void*) noexcept;
   virtual void  emc_raw_detach(reactor*) noexcept;
+  virtual void  emc_raw_sync(float) noexcept;
 
   protected:
   friend  class reactor;
@@ -54,7 +59,6 @@ class rawstage
           rawstage(const rawstage&) noexcept = delete;
           rawstage(rawstage&&) noexcept = delete;
   virtual ~rawstage();
-  virtual void      sync(float) noexcept;
           rawstage& operator=(const rawstage&) noexcept = delete;
           rawstage& operator=(rawstage&&) noexcept = delete;
 };
@@ -72,17 +76,21 @@ class emcstage
 
   protected:
   virtual void  emc_std_attach(gateway*) noexcept;
+  virtual bool  emc_std_resume(gateway*) noexcept;
   virtual void  emc_std_join() noexcept;
-  virtual void  emc_std_connect(const char*, const char*, int) noexcept;
+  virtual void  emc_std_process_message(const char*, int) noexcept;
+  virtual void  emc_std_process_error(const char*, int) noexcept;
   virtual int   emc_std_process_request(int, const sys::argv&) noexcept;
   virtual int   emc_std_process_response(int, const sys::argv&) noexcept;
   virtual void  emc_std_process_comment(const char*, int) noexcept;
   virtual int   emc_std_process_packet(int, int, std::uint8_t*) noexcept;
   virtual int   emc_std_return_message(const char*, int) noexcept;
   virtual int   emc_std_return_packet(int, int, std::uint8_t*) noexcept;
-  virtual void  emc_std_disconnect() noexcept;
   virtual void  emc_std_drop() noexcept;
+  virtual void  emc_std_suspend(gateway*) noexcept;
+  virtual void  emc_std_event(int, void*) noexcept;
   virtual void  emc_std_detach(gateway*) noexcept;
+  virtual void  emc_std_sync(float) noexcept;
 
   protected:
   friend  class gateway;
@@ -92,7 +100,6 @@ class emcstage
           emcstage(const emcstage&) noexcept = delete;
           emcstage(emcstage&&) noexcept = delete;
   virtual ~emcstage();
-  virtual void      sync(float) noexcept;
           emcstage& operator=(const emcstage&) noexcept = delete;
           emcstage& operator=(emcstage&&) noexcept = delete;
 };
