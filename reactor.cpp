@@ -52,14 +52,17 @@ namespace emc {
 
 bool  reactor::ems_resume_at(rawstage* i_stage) noexcept
 {
-      rawstage* i_stage_prev = i_stage->p_stage_prev;
-      while(i_stage != nullptr) {
-          if(i_stage->emc_raw_resume(this) == false) {
-              ems_suspend_at(i_stage_prev);
-              return false;
+      rawstage* i_stage_prev;
+      if(i_stage != nullptr) {
+          i_stage_prev = i_stage->p_stage_prev;
+          while(i_stage != nullptr) {
+              if(i_stage->emc_raw_resume(this) == false) {
+                  ems_suspend_at(i_stage_prev);
+                  return false;
+              }
+              i_stage_prev = i_stage;
+              i_stage      = i_stage->p_stage_next;  
           }
-          i_stage_prev = i_stage;
-          i_stage      = i_stage->p_stage_next;  
       }
       return true;
 }

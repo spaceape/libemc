@@ -192,14 +192,17 @@ char* gateway::emc_reserve(int size) noexcept
 
 bool  gateway::emc_resume_at(emcstage* i_stage) noexcept
 {
-      emcstage* i_stage_prev = i_stage->p_stage_prev;
-      while(i_stage != nullptr) {
-          if(i_stage->emc_std_resume(this) == false) {
-              emc_suspend_at(i_stage_prev);
-              return false;
+      emcstage* i_stage_prev;
+      if(i_stage != nullptr) {
+          i_stage_prev = i_stage->p_stage_prev;
+          while(i_stage != nullptr) {
+              if(i_stage->emc_std_resume(this) == false) {
+                  emc_suspend_at(i_stage_prev);
+                  return false;
+              }
+              i_stage_prev = i_stage;
+              i_stage      = i_stage->p_stage_next;  
           }
-          i_stage_prev = i_stage;
-          i_stage      = i_stage->p_stage_next;  
       }
       return true;
 }
