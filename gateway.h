@@ -30,7 +30,7 @@
 namespace emc {
 
 /* gateway
-   base class for an EMC pipeline
+   base class for the EMC pipeline
 */
 class gateway: public rawstage
 {

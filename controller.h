@@ -1,5 +1,5 @@
-#ifndef emc_service_h
-#define emc_service_h
+#ifndef emc_controller_h
+#define emc_controller_h
 /** 
     Copyright (c) 2023, wicked systems
     All rights reserved.
@@ -16,7 +16,7 @@
     THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES,
     INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
     DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, 
-    SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+    SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR controllerS;
     LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN 
     CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
     EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
@@ -26,17 +26,17 @@
 
 namespace emc {
 
-class service: public emcstage
+class controller: public emcstage
 {
   public:
-          service() noexcept;
-          service(const service&) noexcept = delete;
-          service(service&&) noexcept = delete;
-          ~service();
-  virtual const char* get_name() const noexcept;
-  virtual bool        get_enabled(bool = true) const noexcept;
-          service& operator=(const service&) noexcept = delete;
-          service& operator=(service&&) noexcept = delete;
+          controller() noexcept;
+          controller(const controller&) noexcept = delete;
+          controller(controller&&) noexcept = delete;
+          ~controller();
+  virtual const char* get_name() const noexcept = 0;
+  virtual bool        get_enabled(bool = true) const noexcept = 0;
+          controller& operator=(const controller&) noexcept = delete;
+          controller& operator=(controller&&) noexcept = delete;
 };
 
 /*namespace emc*/ }

@@ -22,6 +22,7 @@
 #include "reactor.h"
 #include "event.h"
 #include "error.h"
+#include "gateway.h"
 
 namespace emc {
 
@@ -29,6 +30,7 @@ namespace emc {
       p_stage_head(nullptr),
       p_stage_tail(nullptr),
       m_stage_count(0),
+      p_gateway(nullptr),
       m_role(role),
       m_resume_bit(false),
       m_connect_bit(false)
@@ -91,6 +93,16 @@ void  reactor::ems_dispatch_drop() noexcept
           i_stage->emc_raw_drop();
           i_stage = i_stage->p_stage_prev;
       }
+}
+
+void  reactor::ems_set_gateway(gateway* gateway) noexcept
+{
+      p_gateway = gateway;
+}
+
+auto  reactor::ems_get_gateway() noexcept -> emc::gateway*
+{
+      return p_gateway;
 }
 
 bool  reactor::emc_raw_resume() noexcept
@@ -243,13 +255,19 @@ bool  reactor::detach(rawstage* stage) noexcept
       return true;
 }
 
-bool  reactor::attach(emcstage*) noexcept
+bool  reactor::attach(emcstage* stage) noexcept
 {
+      if(p_gateway != nullptr) {
+          return p_gateway->attach(stage);
+      }
       return false;
 }
 
-bool  reactor::detach(emcstage*) noexcept
+bool  reactor::detach(emcstage* stage) noexcept
 {
+      if(p_gateway != nullptr) {
+          return p_gateway->detach(stage);
+      }
       return false;
 }
 

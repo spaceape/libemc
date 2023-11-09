@@ -10,11 +10,12 @@ Core design principles are as follows:
   either directly or by sidecar connections);
 - operate on top of a lower level P2P or broadcast protocol (network, UART or even SPI) but
   do not monopolize it - i.e. allow other traffic on the interface as well;
+- a single EMC pipeline is allowed on the same interface;
 - low overhead;
 - accept both buffered and unbuffered input;
 - allow support for encryption, trancoding, compression, filtering, etc. on the interface.
 
-# 2. Principle of operation
+# 2. Operation
 
 EMC processes messages in a _pipeline_, comprising of one or more independent _stages_.
 A _reactor_ is responsible for instantiating and managing a pipeline. A reactor allows an
@@ -27,7 +28,7 @@ base protocol with new services.
 ## 2.2. Roles
 
 Depending on the _function_ of the message pipeline - i.e. whether it is meant to _serve_
-particular functionality to a connected device or act as a bridge towards an EMC-enabled
+particular functionality to a controlling device or act as a bridge towards an EMC-enabled
 server, a pipeline can have one of the following major _roles_:
 - _host_ role: serve a set of functions to a connecting instance;
 - _user_ role: drive a connection to a remote EMC-enabled device.
@@ -80,8 +81,10 @@ An `emc` pipeline can be enabled by attaching a `gateway` stage to the `raw` pip
 ### 2.3.1. The `raw` pipeline
 
 The `raw` pipeline operates with the following events:
-- `join`: triggered by _some_ reactors or interface stages when a socket or device connection becomes available to a client;
-   Pipelines in the `_host_` or `proxy` roles are considered to be implicitely connected, so this event will not be fired for them;
+- `join`: triggered by _some_ reactors or interface stages when a socket or device connection
+   becomes available to a client;
+   Pipelines in the `_host_` or `proxy` roles are considered to be implicitely connected, so
+   this event will not be fired for them;
 - `recv`: inbound message received onto the aux channel (typically `stderr`);
 - `feed`: inbound message received;
 - `send`: outbound message to be sent out on the return flow;
@@ -141,17 +144,37 @@ The events are accessible via the `emcstage` interface:
   void  emc_std_sync(float)
 ```
 
-### 2.3.3. Rings
+## 2.4. Rings
 
-- `emi_ring_network`: peer is running remotely, no shm, ipc or direct filesystem access available between peers
-- `emi_ring_machine`: peer is attached to the same machine - shm and ipc mechanisms available, filesystem paths are absolute and restricted
-- `emi_ring_session`: peer is attached to the same session - shm and ipc mechanisms available, filesystem paths can be relative to the session path
+- `emi_ring_network`: peer is running remotely, no shm, ipc or direct filesystem access
+  available between peers
+- `emi_ring_machine`: peer is attached to the same machine - shm and ipc mechanisms available,
+  filesystem paths are absolute and restricted
+- `emi_ring_session`: peer is attached to the same session - shm and ipc mechanisms available,
+  filesystem paths can be relative to the session path
 - `emi_ring_process`: peer is within the same address space
 
-### 2.3.4. Features
-### 2.3.5. Services
-### 2.3.6. Sessions (EMP documentation)
-### 2.3.6. Controllers (Session Services - EMP documentation)
+## 2.5. Controllers
+
+Controllers are EMC stages that provide a service to the _controlling device(s)_ through the
+command line interface.
+
+## 2.6. Features
+
+Features are simple tag words that describe the capabilities of the server. They are attached
+to controller stages and listed by the `support` command
+
+## 2.7. Services
+
+Services are bits of functionality that a _controlling device_ can make available to the EMC
+server in order to fulfill certain tasks; Services are advertised by the controlling device upon
+connect via the `s+` command.
+
+       client      |      device
+
+                  EMC    
+      [service] <-----> [interface]
+
 
 # 3. The EMC Protocol
 
@@ -167,20 +190,22 @@ The events are accessible via the `emcstage` interface:
 
 ## 3.3. Standard Requests
 
+- `!`  - the help command
+- `@`  - the sync command
+
 ```
   REQUEST := '?' RQID ... EOL
 ```
 
-- '!' - the help command
-- '@' - the sync command
-- 'i' - the info request
-- 'g' - the ping request
-- 'z' - the bye request
+- `?i`  - the info request
+- `?g`  - the ping request
+- `?z`  - the bye request
 
-## 3.4. Standard Events
+## 3.4. Standard Notifications
+- `?s+` - service resume
+- `?s-` - service suspend
 
-- ?p+ support_name
-- ?p- support_name
+## 3.5. Standard Events
 
 ## 3.5. Standard Triggers and Responses
 
@@ -189,8 +214,8 @@ The events are accessible via the `emcstage` interface:
 ```
 
 - ]i ...
-- ]s+ svc_name
-- ]s- svc_name
+- ]p+ feature_name
+- ]p- feature_name
 - ]0  ready
 
 ### 'i' - the info response
@@ -207,10 +232,10 @@ The events are accessible via the `emcstage` interface:
 
   RESPONSE := ']' 'i' SPC PROTOCOL SPC 'v' VERSION SPC NAME SPC TYPE SPC ARCHITECTURE '_' BITS '_' ORDER SPC MTU EOL
 ```
-### 's' - the support response
+### 'p' - the support response
 ```
-  SERVICE  := [A-Za-z_][0-9A-Za-z_]*
-  RESPONSE := ']' 's' SPC {[+-]SERVICE}* EOL
+  FEATURE  := [A-Za-z_][0-9A-Za-z_]*
+  RESPONSE := ']' 'p' SPC {[+-]FEATURE}* [...CAPS_LIST...] EOL
 ```
 ### 'g' - the 'pong' response
 ```
@@ -235,12 +260,12 @@ The events are accessible via the `emcstage` interface:
 
 ## 3.8. The Sync sequence
 ```
-< INFO
-< + <service_0> <properties>...
-< + <service_1> <properties>...
+INFO
+<support_0> <properties>...
+<support_1> <properties>...
 ...
-< + <service_N> <properties>...
-< READY
+<support_N> <properties>...
+READY
 ```
 
 <!-- # 4. API

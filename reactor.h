@@ -28,7 +28,7 @@
 namespace emc {
 
 /* reactor
-   base class for a raw pipeline
+   base class for the raw pipeline
 */
 class reactor
 {
@@ -56,6 +56,9 @@ class reactor
       emi_ring_session |
       emi_ring_process;
 
+  protected:
+  gateway*      p_gateway;
+
   private:
   role          m_role;
   bool          m_resume_bit;
@@ -68,6 +71,8 @@ class reactor
           void  ems_dispatch_drop() noexcept;
 
   protected:
+          void  ems_set_gateway(gateway*) noexcept;
+          auto  ems_get_gateway() noexcept -> emc::gateway*;
   virtual bool  emc_raw_resume() noexcept;
           void  emc_raw_join() noexcept;
           void  emc_raw_feed(std::uint8_t*, int) noexcept;

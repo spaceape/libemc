@@ -52,10 +52,10 @@ constexpr int  emc_type_size = 8;
 constexpr int  emc_name_size = 24;
 constexpr int  emc_info_size = 8;
 
-constexpr char emc_machine_name_default[] = "null";
+constexpr char emc_machine_name_default[] = "(none)";
 constexpr char emc_machine_type_default[] = "emc";
-constexpr char emc_order_le[] = "l";
-constexpr char emc_order_be[] = "b";
+constexpr char emc_order_le[] = "le";
+constexpr char emc_order_be[] = "be";
 
 constexpr char emc_generic_ident_chs[] = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ-_";
 constexpr char emc_proto_ident_chs[] = "0123456789abcdefghijklmnopqrstuvwxyz-";

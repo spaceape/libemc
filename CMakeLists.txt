@@ -20,26 +20,29 @@ include_directories(
   ${CMAKE_CURRENT_BINARY_DIR}
 )
 
+configure_file(config.in.h ${CMAKE_CURRENT_BINARY_DIR}/config.h)
+
 set(EMC_SDK_DIR ${HOST_SDK_DIR}/${NAME})
 
 set(inc
   emc.h protocol.h event.h error.h
   timer.h 
   pipeline.h
-  gateway.h monitor.h service.h
+  gateway.h monitor.h controller.h
   reactor.h 
 )
 
 set(srcs
   timer.cpp
   pipeline.cpp
-  gateway.cpp monitor.cpp service.cpp
+  gateway.cpp monitor.cpp controller.cpp
   reactor.cpp
 )
 
-configure_file(config.in.h ${CMAKE_CURRENT_BINARY_DIR}/config.h)
-
-set(libs host ${HOST_LIBS})
+set(libs
+  host
+  ${HOST_LIBS}
+)
 
 add_library(${NAME} STATIC ${srcs})
 set_target_properties(${NAME} PROPERTIES PREFIX "${PREFIX}")

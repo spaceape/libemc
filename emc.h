@@ -27,7 +27,7 @@ namespace emc {
 
 class reactor;
 class gateway;
-class service;
+class controller;
 class monitor;
 
 /* chid_*
