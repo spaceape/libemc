@@ -140,6 +140,11 @@ int   reactor::emc_raw_recv(std::uint8_t* data, int size) noexcept
       return err_okay;
 }
 
+int   reactor::emc_raw_send(std::uint8_t* data, int size) noexcept
+{
+      return err_fail;
+}
+
 void  reactor::emc_raw_drop() noexcept
 {
       if(m_connect_bit == true) {

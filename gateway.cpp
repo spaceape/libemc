@@ -749,7 +749,7 @@ int   gateway::emc_raw_feed(std::uint8_t* data, int size) noexcept
                               void* l_recv_data;
                               int   l_recv_reserve;
                               if(m_recv_iter >= m_reserve_max) {
-                                  l_reject     = true;
+                                  l_reject  = true;
                                   l_feed_rc = err_fail;
                                   break;
                               }
@@ -757,15 +757,21 @@ int   gateway::emc_raw_feed(std::uint8_t* data, int size) noexcept
                               if(l_recv_reserve > m_reserve_max) {
                                   l_recv_reserve = m_reserve_max;
                               }
-                              l_recv_data = ::realloc(m_recv_data, l_recv_reserve);
+                              l_recv_data = realloc(m_recv_data, l_recv_reserve);
                               if(l_recv_data == nullptr) {
-                                  l_reject     = true;
+                                  l_reject  = true;
                                   l_feed_rc = err_fail;
                                   break;
                               }
+                              m_recv_data = reinterpret_cast<char*>(l_recv_data);
                               m_recv_size = l_recv_reserve;
                           }
                           if(*p_feed == NUL) {
+                              m_recv_data[m_recv_iter++] = NUL;
+                              l_commit = true;
+                              break;
+                          } else
+                          if(*p_feed == RET) {
                               m_recv_data[m_recv_iter++] = NUL;
                               l_commit = true;
                               break;

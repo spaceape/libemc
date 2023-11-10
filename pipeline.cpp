@@ -76,7 +76,7 @@ int   rawstage::emc_raw_send(std::uint8_t* data, int size) noexcept
           return p_stage_prev->emc_raw_send(data, size);
       } else
       if(p_owner) {
-          return p_owner->emc_raw_recv(data, size);
+          return p_owner->emc_raw_send(data, size);
       } else
           return err_fail;
 }
