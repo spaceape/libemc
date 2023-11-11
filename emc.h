@@ -1,7 +1,7 @@
 #ifndef emc_h
 #define emc_h
-/**
-    Copyright (c) 2022, wicked systems
+/** 
+    Copyright (c) 2023, wicked systems
     All rights reserved.
 
     Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following
@@ -22,8 +22,11 @@
     EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 **/
 #include <global.h>
+#include <sys/ios.h>
 
 namespace emc {
+
+using ios = sys::ios;
 
 class reactor;
 class gateway;

@@ -47,7 +47,7 @@ class rawstage
   virtual int   emc_raw_send(std::uint8_t*, int) noexcept;
   virtual void  emc_raw_drop() noexcept;
   virtual void  emc_raw_suspend(reactor*) noexcept;
-  virtual void  emc_raw_event(int, void*) noexcept;
+  virtual int   emc_raw_event(int, void*) noexcept;
   virtual void  emc_raw_detach(reactor*) noexcept;
   virtual void  emc_raw_sync(float) noexcept;
 
@@ -88,7 +88,7 @@ class emcstage
   virtual int   emc_std_return_packet(int, int, std::uint8_t*) noexcept;
   virtual void  emc_std_drop() noexcept;
   virtual void  emc_std_suspend(gateway*) noexcept;
-  virtual void  emc_std_event(int, void*) noexcept;
+  virtual int   emc_std_event(int, void*) noexcept;
   virtual void  emc_std_detach(gateway*) noexcept;
   virtual void  emc_std_sync(float) noexcept;
 

@@ -79,7 +79,7 @@ class reactor
   virtual int   emc_raw_recv(std::uint8_t*, int) noexcept;
   virtual int   emc_raw_send(std::uint8_t*, int) noexcept;
           void  emc_raw_drop() noexcept;
-  virtual void  emc_raw_event(int, void*) noexcept;
+  virtual int   emc_raw_event(int, void*) noexcept;
   virtual void  emc_raw_suspend() noexcept;
   virtual void  ems_sync(float) noexcept;
 

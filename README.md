@@ -154,15 +154,23 @@ The events are accessible via the `emcstage` interface:
   filesystem paths can be relative to the session path
 - `emi_ring_process`: peer is within the same address space
 
-## 2.5. Controllers
+## 2.5. Controllers and Layers
 
-Controllers are EMC stages that provide a service to the _controlling device(s)_ through the
-command line interface.
+Controllers are a subset of EMC stages which provide a services to the _controlling device(s)_
+through the command line interface. Each controller extends the base protocol with an unique set
+of commands through which it can be interacted with, called a _Layer_.
 
-## 2.6. Features
+## 2.6. Devices and Features
 
-Features are simple tag words that describe the capabilities of the server. They are attached
-to controller stages and listed by the `support` command
+Devices implement high bandwith software interfaces to _features_ on the machine. As opposed to
+Controllers, Devices do *not* need to define their own commands, but instead are accessible via
+the "**dev**" layer, using commands such as:
+
+  - `support`
+  - `describe [<feature>]`
+  - `open`
+  - `reopen`
+  - `close`
 
 ## 2.7. Services
 
@@ -183,70 +191,66 @@ connect via the `s+` command.
   RQID := [A-Za-z?]+      ; request identifier
   RSID := [A-Za-z0-9]+    ; response identifier
   SPC  := [\s\t]+
-  EOL  := [\r\n]
+  EOL  := [\r] | [\n] | [\r\n]
 ```
 
-## 3.2. Protocol states
+## 3.2. Standard Requests
 
-## 3.3. Standard Requests
-
-- `!`  - the help command
-- `@`  - the sync command
-
+### 3.2.1. General form
 ```
   REQUEST := '?' RQID ... EOL
 ```
 
-- `?i`  - the info request
-- `?g`  - the ping request
-- `?z`  - the bye request
+### 3.2.2. `?i`: the info request
+### 3.2.3. `?g`: the ping request
+### 3.2.4. `?z`: the bye request
+### 3.2.5. `?s+`: service resume
+### 3.2.6. `?s-`: service suspend
 
-## 3.4. Standard Notifications
-- `?s+` - service resume
-- `?s-` - service suspend
+## 3.3. Standard Responses/Triggers
 
-## 3.5. Standard Events
-
-## 3.5. Standard Triggers and Responses
-
+### 3.3.1. General form
 ```
   RESPONSE := ']' RSID ... EOL
 ```
 
-- ]i ...
-- ]p+ feature_name
-- ]p- feature_name
-- ]0  ready
+### 3.3.2. `]i`: the info response
+```
+  PROTOCOL  := [0-9a-z_-]+
+  DECIMAL   := [0-9]
+  VERSION   := DECIMAL '.' DECIMAL DECIMAL
+  NAME      := [0-9A-Za-z_-]{1..23}
+  TYPE      := [0-9A-Za-z_-]{1..7}
+  ARCHITECTURE  := IDENT
+  BYTE_ORDER    := "le" | "be"
+  MTU       := [0-9A-Fa-f]+
 
-### 'i' - the info response
-```
-  PROTOCOL := [0-9a-z_-]+
-  DECIMAL  := [0-9]
-  VERSION  := DECIMAL '.' DECIMAL DECIMAL
-  NAME     := [0-9A-Za-z_-]{1..23}
-  TYPE     := [0-9A-Za-z_-]{1..7}
-  ARCHITECTURE := IDENT
-  BITS     := [0-9]+
-  BYTE_ORDER   := "le" | "be"
-  MTU      := [0-9A-Fa-f]+
-
-  RESPONSE := ']' 'i' SPC PROTOCOL SPC 'v' VERSION SPC NAME SPC TYPE SPC ARCHITECTURE '_' BITS '_' ORDER SPC MTU EOL
-```
-### 'p' - the support response
-```
-  FEATURE  := [A-Za-z_][0-9A-Za-z_]*
-  RESPONSE := ']' 'p' SPC {[+-]FEATURE}* [...CAPS_LIST...] EOL
-```
-### 'g' - the 'pong' response
-```
-  RESPONSE := ']' 'g' SPC XXXXXXXX EOL
+  RESPONSE  := ']' 'i' SPC PROTOCOL SPC 'v' VERSION SPC NAME SPC TYPE SPC ARCHITECTURE '_' ORDER SPC MTU EOL
 ```
 
-### '0' - The `OK` response
+### 3.3.3. `]c`: the "caps" response
+```
+  LAYER     := [A-Za-z_][0-9A-Za-z_]*
+  RESPONSE  := ']' 'c' SPC [LAYER [SPC LAYER]...] EOL
+```
 
-### 'e' - the error response
+### 3.3.4. `]g` - the 'pong' response
+```
+  RESPONSE := ']' 'g' SPC [^SPC]+ EOL
+```
 
-### 'z' - the `BYE` response
+### 3.3.5. `]0` - the `OK` response
+
+### 3.3.6. `]\d+` - the error response
+```
+  HEX := [0-9A-Fa-f]
+  RESPONSE := ']' HEX{2} .* EOL
+```
+
+### 3.3.7. `]z` - the `BYE` response
+```
+  RESPONSE := ']' 'z' .* EOL
+```
 
 ## 3.6. Services
 

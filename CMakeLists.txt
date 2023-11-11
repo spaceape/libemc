@@ -1,18 +1,17 @@
 # emc
-# Enhanced Machine Control library
+# Embedded Machine Control library
 project(emc)
 set(NAME emc)
 set(PREFIX)
 
-add_definitions(
-  -fPIC
-  -DCPU=${CPU}
-  -DDPU=${DPU} -DDPU_H=<dpu/${DPU}.h>
-  -DFPU=${FPU} -DFPU_H=<fpu/${FPU}.h>
-  -DGPU=${GPU} -DGPU_H=<gpu/${GPU}.h>
-  -DPIC
-  ${HOST_DEFS}
-)
+add_definitions(${HOST_DEFS})
+
+if(LINUX)
+  add_definitions(
+    -fPIC
+    -DPIC
+  )
+endif()
 
 include_directories(
   ${HOST_INCLUDES}
@@ -20,9 +19,9 @@ include_directories(
   ${CMAKE_CURRENT_BINARY_DIR}
 )
 
-configure_file(config.in.h ${CMAKE_CURRENT_BINARY_DIR}/config.h)
-
 set(EMC_SDK_DIR ${HOST_SDK_DIR}/${NAME})
+
+configure_file(config.in.h ${CMAKE_CURRENT_BINARY_DIR}/config.h)
 
 set(inc
   emc.h protocol.h event.h error.h
@@ -44,7 +43,7 @@ set(libs
   ${HOST_LIBS}
 )
 
-add_library(${NAME} STATIC ${srcs})
+add_library(${NAME} ${srcs})
 set_target_properties(${NAME} PROPERTIES PREFIX "${PREFIX}")
 target_link_libraries(${NAME} ${libs})
 

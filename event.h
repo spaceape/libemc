@@ -35,10 +35,15 @@ static constexpr int  ev_join = 1;
 */
 static constexpr int  ev_drop = 2;
 
+/* ev_close_request
+   signal the reactor that the endpoint requests a close
+*/
+static constexpr int  ev_close_request = 3;
+
 /* ev_hup
    signal the reactor that the endpoint has hung up
 */
-static constexpr int  ev_hup = 3;
+static constexpr int  ev_hup = 4;
 
 /* ev_progess
 */

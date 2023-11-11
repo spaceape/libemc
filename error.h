@@ -29,38 +29,51 @@ namespace emc {
 /* err_okay
    no error, all went smooth
 */
-constexpr int  err_okay = ::err_okay;
-constexpr char msg_ready[] = "READY";
+static constexpr int err_okay = ::err_okay;
+static constexpr char msg_ready[] = "READY";
 
 /* err_parse
    request could not be parsed 
 */
-constexpr int  err_parse = -127;
-constexpr char msg_parse[] = "INVALID REQUEST";
+static constexpr int  err_parse = -127;
+static constexpr char msg_parse[] = "INVALID REQUEST";
 
 /* err_bad_request
    request is generally erroneous
 */
-constexpr int  err_bad_request = -2;
-constexpr char msg_bad_request[] = "BAD REQUEST";
+static constexpr int  err_bad_request = -2;
+static constexpr char msg_bad_request[] = "BAD REQUEST";
 
 
 /* err_no_request
    request could not be handled by any attached modules
 */
-constexpr int  err_no_request = -1;
-constexpr char msg_no_request[] = "COMMAND NOT FOUND";
+static constexpr int  err_no_request = -1;
+static constexpr char msg_no_request[] = "COMMAND NOT FOUND";
 
 /* err_no_response
    response could not be handled by the super-session
 */
-constexpr int  err_no_response = -1;
-constexpr char msg_no_response[] = "COMMAND NOT FOUND";
+static constexpr int  err_no_response = -1;
+static constexpr char msg_no_response[] = "COMMAND NOT FOUND";
+
+/* err_refuse
+   action refused or not implemented
+*/
+static constexpr int  err_refuse = -126;
+static constexpr char msg_refuse[] = "COMMAND REFUSED";
 
 /* err_fail
 */
-constexpr int  err_fail = -128;
-constexpr char msg_fail[] = "INTERNAL ERROR";
+static constexpr int  err_fail = ::err_fail;
+static constexpr char msg_fail[] = "INTERNAL ERROR";
+
+/* bit_next
+   flag returned by monitors for requests that are allowed to be handled by multiple entities
+*/
+static constexpr int  bit_next = 1;
+
+static constexpr int  err_bits = std::numeric_limits<int>::max() ^ (bit_next);
 
 /*namespace emc*/ }
 #endif

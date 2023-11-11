@@ -40,7 +40,7 @@ constexpr char emc_response_service = 's';
 constexpr char emc_response_pong = 'g';
 constexpr char emc_response_okay = '0';
 constexpr char emc_response_bye = 'z';
-constexpr char emc_packet_header_size = 4;      // size of a packet header: 1 byte denoting the channel + 3 for size
+constexpr char emc_packet_header_size = 4;  // size of a packet header: 1 byte denoting the channel + 3 for size
 
 constexpr char emc_enable_tag = '+';
 constexpr char emc_disable_tag = '-';
@@ -52,7 +52,7 @@ constexpr int  emc_type_size = 8;
 constexpr int  emc_name_size = 24;
 constexpr int  emc_info_size = 8;
 
-constexpr char emc_machine_name_default[] = "(none)";
+constexpr char emc_machine_name_none[] = "(none)";
 constexpr char emc_machine_type_default[] = "emc";
 constexpr char emc_order_le[] = "le";
 constexpr char emc_order_be[] = "be";

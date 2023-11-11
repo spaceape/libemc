@@ -160,7 +160,7 @@ class gateway: public rawstage
           void    emc_send_info_request() noexcept;
           int     emc_send_service_response() noexcept;
           void    emc_send_ping_request() noexcept;
-          int     emc_send_pong_response() noexcept;
+          int     emc_send_pong_response(const char*) noexcept;
           int     emc_send_bye_response() noexcept;
           int     emc_send_sync_response() noexcept;
           int     emc_send_help_response() noexcept;
@@ -175,7 +175,7 @@ class gateway: public rawstage
           int     emc_gate_forward_packet(int, int, std::uint8_t*) noexcept;
           int     emc_std_return_message(const char*, int) noexcept;
           int     emc_std_return_packet(int, int, std::uint8_t*) noexcept;
-          void    emc_std_event(int, void*) noexcept;
+          int     emc_std_event(int, void*) noexcept;
  virtual  void    emc_gate_disconnect() noexcept;
           void    emc_gate_drop() noexcept;
           void    emc_gate_trip() noexcept;
@@ -192,7 +192,7 @@ class gateway: public rawstage
   virtual int     emc_raw_send(std::uint8_t*, int) noexcept override;
   virtual void    emc_raw_drop() noexcept override;
   virtual void    emc_raw_suspend(reactor*) noexcept override;
-  virtual void    emc_raw_event(int, void*) noexcept override;
+  virtual int     emc_raw_event(int, void*) noexcept override;
   virtual void    emc_raw_detach(reactor*) noexcept override;
   virtual void    emc_raw_sync(float) noexcept override;
 

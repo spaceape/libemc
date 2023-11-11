@@ -85,11 +85,12 @@ void  rawstage::emc_raw_suspend(reactor*) noexcept
 {
 }
 
-void  rawstage::emc_raw_event(int id, void* stage) noexcept
+int   rawstage::emc_raw_event(int id, void* data) noexcept
 {
       if(p_owner) {
-          p_owner->emc_raw_event(id, stage);
+          return p_owner->emc_raw_event(id, data);
       }
+      return err_okay;
 }
 
 void  rawstage::emc_raw_drop() noexcept
@@ -205,11 +206,12 @@ void  emcstage::emc_std_suspend(gateway*) noexcept
 {
 }
 
-void  emcstage::emc_std_event(int id, void* stage) noexcept
+int   emcstage::emc_std_event(int id, void* data) noexcept
 {
       if(p_owner != nullptr) {
-          p_owner->emc_std_event(id, stage);
+          return p_owner->emc_std_event(id, data);
       }
+      return err_okay;
 }
 
 void  emcstage::emc_std_detach(gateway*) noexcept

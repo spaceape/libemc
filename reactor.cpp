@@ -155,20 +155,20 @@ void  reactor::emc_raw_drop() noexcept
       }
 }
 
-void  reactor::emc_raw_event(int id, void*) noexcept
+int   reactor::emc_raw_event(int id, void* data) noexcept
 {
       switch(id) {
           case ev_join:
               emc_raw_join();
-              break;
+              return err_okay;
           case ev_drop:
               emc_raw_drop();
-              break;
+              return err_okay;
           case ev_hard_fault:
               emc_raw_suspend();
-              break;
+              return err_okay;
           default:
-              break;
+              return err_refuse;
       }
 }
 
