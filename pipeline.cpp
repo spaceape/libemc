@@ -136,16 +136,10 @@ void  emcstage::emc_std_join() noexcept
 
 void  emcstage::emc_std_process_message(const char* message, int length) noexcept
 {
-      if(p_stage_next != nullptr) {
-          p_stage_next->emc_std_process_message(message, length);
-      }
 }
 
 void  emcstage::emc_std_process_error(const char* message, int length) noexcept
 {
-      if(p_stage_next != nullptr) {
-          p_stage_next->emc_std_process_error(message, length);
-      }
 }
 
 int   emcstage::emc_std_process_request(int argc, const sys::argv& argv) noexcept
@@ -166,9 +160,6 @@ int   emcstage::emc_std_process_response(int argc, const sys::argv& argv) noexce
 
 void  emcstage::emc_std_process_comment(const char* message, int length) noexcept
 {
-      if(p_stage_next != nullptr) {
-          p_stage_next->emc_std_process_comment(message, length);
-      }
 }
 
 int   emcstage::emc_std_process_packet(int, int, std::uint8_t*) noexcept

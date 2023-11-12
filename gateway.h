@@ -59,8 +59,6 @@ class gateway: public rawstage
   float     m_gate_wait_time;     
   float     m_gate_drop_time;           // time of silence before any incomplete message is discarded
   float     m_gate_trip_time;           // time of silence before the machine is declared disconnected
-  bool      m_error_comment;            // if a request fails to parse correctly - handle it as a comment
-  bool      m_dispatch_packet;
   bool      m_flush_auto;               // send pending data as soon as EOL is written to the data buffer
   bool      m_flush_sync;               // send pending data upon sync() [[not implemented]]
 
@@ -109,11 +107,6 @@ class gateway: public rawstage
           void    emc_suspend_at(emcstage*) noexcept;
           void    emc_dispatch_join() noexcept;
           void    emc_dispatch_drop() noexcept;
-
-          int     emc_feed_request(char*, int) noexcept;
-          void    emc_feed_response(char*, int) noexcept;
-          void    emc_feed_comment(char*, int) noexcept;
-          void    emc_feed_packet(int, int, std::uint8_t*) noexcept;
 
   protected:
   inline  void  emc_put() noexcept {
@@ -169,10 +162,10 @@ class gateway: public rawstage
           int     emc_send_error_response(int, const char* = nullptr, ...) noexcept;
 
  virtual  void    emc_gate_connect(const char*, const char*, int) noexcept;
-          void    emc_gate_forward_message(const char*, int) noexcept;
+          void    emc_gate_dispatch_message(const char*, int) noexcept;
           int     emc_gate_forward_request(int, const sys::argv&) noexcept;
           int     emc_gate_forward_response(int, const sys::argv&) noexcept;
-          void    emc_gate_forward_comment(const char*, int) noexcept;
+          void    emc_gate_dispatch_comment(const char*, int) noexcept;
           int     emc_gate_forward_packet(int, int, std::uint8_t*) noexcept;
           int     emc_std_return_message(const char*, int) noexcept;
           int     emc_std_return_packet(int, int, std::uint8_t*) noexcept;
@@ -185,6 +178,13 @@ class gateway: public rawstage
           auto    emc_get_gate_info() const noexcept -> const char*;
           int     emc_get_send_mtu() const noexcept;
           bool    emc_set_send_mtu(int) noexcept;
+
+          int     emc_raw_feed_request(char*, int) noexcept;
+          void    emc_raw_feed_help_request(char*, int) noexcept;
+          void    emc_raw_feed_sync_request(char*, int) noexcept;
+          void    emc_raw_feed_response(char*, int) noexcept;
+          void    emc_raw_feed_comment(char*, int) noexcept;
+          void    emc_raw_feed_packet(int, int, std::uint8_t*) noexcept;
 
   virtual void    emc_raw_attach(reactor*) noexcept override;
   virtual bool    emc_raw_resume(reactor*) noexcept override;

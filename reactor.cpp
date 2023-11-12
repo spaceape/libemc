@@ -121,9 +121,7 @@ bool  reactor::emc_raw_resume() noexcept
 void  reactor::emc_raw_join() noexcept
 {
       if(m_connect_bit == false) {
-          if(m_resume_bit == true) {
-              ems_dispatch_join();
-          }
+          ems_dispatch_join();
           m_connect_bit = true;
       }
 }
@@ -148,9 +146,7 @@ int   reactor::emc_raw_send(std::uint8_t* data, int size) noexcept
 void  reactor::emc_raw_drop() noexcept
 {
       if(m_connect_bit == true) {
-          if(m_resume_bit == true) {
-              ems_dispatch_drop();
-          }
+          ems_dispatch_drop();
           m_connect_bit = false;
       }
 }
@@ -176,10 +172,7 @@ int   reactor::emc_raw_event(int id, void* data) noexcept
 void  reactor::emc_raw_suspend() noexcept
 {
       if(m_resume_bit == true) {
-          if(m_connect_bit == true) {
-              ems_dispatch_drop();
-              m_connect_bit = false;
-          }
+          emc_raw_drop();
           ems_suspend_at(p_stage_tail);
           m_resume_bit = false;
       }

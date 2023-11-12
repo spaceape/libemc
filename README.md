@@ -111,14 +111,16 @@ The `emc` pipeline operates with the following events:
   available to a client; Pipelines in the `_host_` role are considered to be implicitely
   "connected", so this event will is not required to be fired for them;
 - `connect`: EMC handshake successful (i.e. the `INFO` response received) in the _user_ role;
-- `process_message`: process inbound message in string form
-- `process_error`: process inbound stderr message in the string form
+- `process_message`: callback for a received message, in string form (useful for monitors and
+  loggers)
+- `process_error`: callback for a received stderr message, in the string form (useful for
+  monitors and loggers)
 - `process_request`: received an inbound query decoded into an EMC request (for pipelines in
   the _host_ role);
 - `process_response` received an inbound query decoded into an EMC response (for pipelines in
   the _user_ role);
-- `process_comment`: received a random inbound query that does not conform to either the
-  request or the response syntax;
+- `process_comment`: callback for a received query that is neither a request nor a response in
+  EMC message format;
 - `process_packet`: received a data packet;
 - `return_message`: response to an inbound message to be returned (on the return flow);
 - `return_packet`: response to an inbound packet to be returned (on the return flow);
