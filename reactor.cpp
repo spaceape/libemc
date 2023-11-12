@@ -168,8 +168,9 @@ int   reactor::emc_raw_event(int id, void* data) noexcept
               emc_raw_suspend();
               return err_okay;
           default:
-              return err_refuse;
+              break;
       }
+      return err_refuse;
 }
 
 void  reactor::emc_raw_suspend() noexcept

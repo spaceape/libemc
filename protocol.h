@@ -36,6 +36,7 @@ constexpr char emc_request_ping = 'g';
 constexpr char emc_request_bye = 'z';
 
 constexpr char emc_response_info = 'i';
+constexpr char emc_response_cap = 'c';
 constexpr char emc_response_service = 's';
 constexpr char emc_response_pong = 'g';
 constexpr char emc_response_okay = '0';

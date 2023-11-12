@@ -263,14 +263,12 @@ connect via the `s+` command.
   CHANNEL = EOF - C
 
 ## 3.8. The Sync sequence
-```
-INFO
-<support_0> <properties>...
-<support_1> <properties>...
-...
-<support_N> <properties>...
-READY
-```
+
+- INFO
+- CAPS
+- ...
+- EOD
+
 
 <!-- # 4. API
 

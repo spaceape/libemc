@@ -222,4 +222,9 @@ void  emcstage::emc_std_sync(float) noexcept
 {
 }
 
+auto  emcstage::get_cap_name(int index) const -> const char*
+{
+      return nullptr;
+}
+
 /*namespace emc*/ }

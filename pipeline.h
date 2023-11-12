@@ -100,8 +100,9 @@ class emcstage
           emcstage(const emcstage&) noexcept = delete;
           emcstage(emcstage&&) noexcept = delete;
   virtual ~emcstage();
-          emcstage& operator=(const emcstage&) noexcept = delete;
-          emcstage& operator=(emcstage&&) noexcept = delete;
+  virtual const char* get_cap_name(int) const;
+          emcstage&   operator=(const emcstage&) noexcept = delete;
+          emcstage&   operator=(emcstage&&) noexcept = delete;
 };
 
 /*namespace emc*/ }

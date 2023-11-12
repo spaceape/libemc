@@ -158,6 +158,7 @@ class gateway: public rawstage
           int     emc_send_ready_response() noexcept;
           int     emc_send_info_response() noexcept;
           void    emc_send_info_request() noexcept;
+          void    emc_send_caps_response() noexcept;
           int     emc_send_service_response() noexcept;
           void    emc_send_ping_request() noexcept;
           int     emc_send_pong_response(const char*) noexcept;

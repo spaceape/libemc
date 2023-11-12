@@ -458,6 +458,27 @@ void  gateway::emc_send_info_request() noexcept
       emc_put(emc_tag_request, emc_request_info, EOL);
 }
 
+void  gateway::emc_send_caps_response() noexcept
+{
+      emcstage* p_stage_iter = p_stage_head;
+      // iterate through each stage and list its capabilities by calling onto its `get_cap_name()` member
+      emc_put(emc_tag_response, emc_response_cap);
+      while(p_stage_iter != nullptr) {
+          int         l_cap_index = 0;
+          const char* p_cap_name  = p_stage_iter->get_cap_name(l_cap_index);
+          while(p_cap_name != nullptr) {
+              if(p_cap_name[0]) {
+                  emc_put(SPC);
+                  emc_put(p_cap_name);
+              }
+              ++l_cap_index;
+          }
+          p_stage_iter = p_stage_iter->p_stage_next;
+      }
+      // finish the caps line
+      emc_put(EOL);
+}
+
 int   gateway::emc_send_service_response() noexcept
 {
       return err_okay;
@@ -484,7 +505,7 @@ int   gateway::emc_send_bye_response() noexcept
 int   gateway::emc_send_sync_response() noexcept
 {
       emc_send_info_response();
-      emc_send_service_response();
+      emc_send_caps_response();
       return err_okay;
 }
 
