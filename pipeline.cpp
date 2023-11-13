@@ -134,6 +134,10 @@ void  emcstage::emc_std_join() noexcept
 {
 }
 
+void  emcstage::emc_std_connect(const char*, const char*, int) noexcept
+{
+}
+
 void  emcstage::emc_std_process_message(const char* message, int length) noexcept
 {
 }
@@ -187,6 +191,10 @@ int   emcstage::emc_std_return_packet(int channel, int size, std::uint8_t* data)
           return p_owner->emc_std_return_packet(channel, size, data);
       } else
           return err_fail;
+}
+
+void  emcstage::emc_std_disconnect() noexcept
+{
 }
 
 void  emcstage::emc_std_drop() noexcept

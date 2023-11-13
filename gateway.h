@@ -47,7 +47,7 @@ class gateway: public rawstage
   int       m_send_size;
   int       m_send_mtu;
 
-  sys::argv m_args;               // request/response command line
+  sys::argv m_args;                     // request/response command line
   emcstage* p_stage_head;
   emcstage* p_stage_tail;
 
@@ -64,9 +64,10 @@ class gateway: public rawstage
 
   private:
   timer     m_ping_ctr;
-  timer     m_info_ctr;                 // info timer    
+  timer     m_info_ctr;                 // info timer
   timer     m_drop_ctr;                 // drop timer
   timer     m_trip_ctr;                 // trip timer
+  bool      m_ping_await;               // ping has been sent, don't send another until a pong has been received
 
   int       m_reserve_min;              // how many bytes to reserve into the local buffers at a minimum
   int       m_reserve_max;              // how many bytes to reserve into the local buffers at most
@@ -89,6 +90,7 @@ class gateway: public rawstage
   int       m_chr_tmit;
   int       m_mem_size;
   int       m_mem_used;
+  float     m_run_time;                 // how long has the gateway been up
 
   private:
   bool      m_host_role;                // server mode, accept and respond to requests
@@ -96,7 +98,7 @@ class gateway: public rawstage
   bool      m_ping_enable;
   int       m_stage_count;
   bool      m_resume_bit;
-  bool      m_connect_bit;              // raw connection is up
+  bool      m_join_bit;                 // raw connection is up
   bool      m_healthy_bit;              // emc connection is up and healthy
 
   private:
@@ -161,7 +163,7 @@ class gateway: public rawstage
           void    emc_send_raw(const char*, int) noexcept;
           int     emc_send_error_response(int, const char* = nullptr, ...) noexcept;
 
- virtual  void    emc_gate_connect(const char*, const char*, int) noexcept;
+ virtual  void    emc_gate_dispatch_connect(const char*, const char*, int) noexcept;
           void    emc_gate_dispatch_message(const char*, int) noexcept;
           int     emc_gate_forward_request(int, const sys::argv&) noexcept;
           int     emc_gate_forward_response(int, const sys::argv&) noexcept;
@@ -170,7 +172,7 @@ class gateway: public rawstage
           int     emc_std_return_message(const char*, int) noexcept;
           int     emc_std_return_packet(int, int, std::uint8_t*) noexcept;
           int     emc_std_event(int, void*) noexcept;
- virtual  void    emc_gate_disconnect() noexcept;
+ virtual  void    emc_gate_dispatch_disconnect() noexcept;
           void    emc_gate_drop() noexcept;
           void    emc_gate_trip() noexcept;
 

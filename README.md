@@ -124,7 +124,8 @@ The `emc` pipeline operates with the following events:
 - `process_packet`: received a data packet;
 - `return_message`: response to an inbound message to be returned (on the return flow);
 - `return_packet`: response to an inbound packet to be returned (on the return flow);
-- `disconnect`: connection to the server still up, but EMC interface no longer responding;
+- `disconnect`: connection to the server still up, but EMC interface no longer responding
+  (_user_ role);
 - `drop`: connection to the server closed or lost.
 
 
@@ -132,6 +133,7 @@ The events are accessible via the `emcstage` interface:
 ```
   bool  emc_std_resume(gateway*) noexcept
   void  emc_std_join()
+  void  emc_std_connect(const char*, const char*, int)
   void  emc_std_process_message(const char*, int)
   void  emc_std_process_error(const char*, int)
   int   emc_std_process_request(int, const sys::argv&)
@@ -140,6 +142,7 @@ The events are accessible via the `emcstage` interface:
   int   emc_std_process_packet(int, int, std::uint8_t*)
   int   emc_std_return_message(const char*, int)
   int   emc_std_return_packet(int, int, std::uint8_t*)
+  void  emc_std_disconnect()
   void  emc_std_drop()
   void  emc_std_suspend(gateway*) noexcept
   void  emc_std_event(int, void*)

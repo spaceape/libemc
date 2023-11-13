@@ -42,17 +42,16 @@ constexpr int   queue_size_min = global::cache_large_max;
 */
 constexpr int   queue_size_max = 4096;
 
-
 /* message_drop_time
  * drop a message if it is not completed within this time interval (in seconds)
 */
-constexpr float message_drop_time = 60.0f;
+constexpr float message_drop_time = 32.0f;
 
 /* message_wait_time
  * generic response timeout
  * should not be greater than message_drop_time, otherwise, message may be dropped while waiting and never be completed.
 */
-constexpr float message_wait_time = 30.0f;
+constexpr float message_wait_time = 16.0f;
 
 /* message_trip_time
  * if silent for this interval, peer should be declared unreachable 
@@ -63,7 +62,7 @@ constexpr float message_trip_time = 128.0f;
 /* message_ping_time
  * if silent for this interval, peer should be queried with a ping message
  * should be greater than message_wait_time to avoid flooding a slow connection with ping messages, but lower than 
- * message_trip_time minus message_wait_time, to make sure a pong message has time to be processed and travel back 
+ * message_trip_time minus message_wait_time, to make sure a pong message has time to travel back and be processed
 */
 constexpr float message_ping_time = message_trip_time / 2;
 

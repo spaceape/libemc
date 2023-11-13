@@ -78,6 +78,7 @@ class emcstage
   virtual void  emc_std_attach(gateway*) noexcept;
   virtual bool  emc_std_resume(gateway*) noexcept;
   virtual void  emc_std_join() noexcept;
+  virtual void  emc_std_connect(const char*, const char*, int) noexcept;
   virtual void  emc_std_process_message(const char*, int) noexcept;
   virtual void  emc_std_process_error(const char*, int) noexcept;
   virtual int   emc_std_process_request(int, const sys::argv&) noexcept;
@@ -86,6 +87,7 @@ class emcstage
   virtual int   emc_std_process_packet(int, int, std::uint8_t*) noexcept;
   virtual int   emc_std_return_message(const char*, int) noexcept;
   virtual int   emc_std_return_packet(int, int, std::uint8_t*) noexcept;
+  virtual void  emc_std_disconnect() noexcept;
   virtual void  emc_std_drop() noexcept;
   virtual void  emc_std_suspend(gateway*) noexcept;
   virtual int   emc_std_event(int, void*) noexcept;
