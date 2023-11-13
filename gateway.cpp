@@ -538,30 +538,26 @@ int   gateway::emc_raw_feed_request(char* message, int length) noexcept
               l_rc = emc_process_request(l_argc, l_argv);
               // ...or otherwise handle the protocol-mandated requests here
               if(l_rc == err_no_request) {
-                  if(l_argv.has_count(1)) {
-                      if(l_argv[0].has_size(1)) {
-                          switch(l_argv[0][0]) {
-                              case emc_request_info:
+                  if(l_argv[0].has_size(1)) {
+                      switch(l_argv[0][0]) {
+                          case emc_request_info:
+                              if(l_argc == 1) {
                                   l_rc = emc_send_info_response();
-                                  break;
-                              case emc_request_ping:
-                                  if(l_argc > 1) {
-                                      char l_word_str[32];
-                                      if(l_argv[1].get_size() < static_cast<int>(sizeof(l_word_str))) {
-                                          strlcpy(l_word_str, l_argv[1].get_text(), l_argv[1].get_size());
-                                          l_rc = emc_send_pong_response(l_word_str);
-                                      } else
-                                          l_rc = err_parse;
-                                  } else
-                                  if(l_argc == 1) {
-                                      l_rc = emc_send_pong_response(nullptr);
-                                  } else
-                                      l_rc = err_parse;
-                                  break;
-                              case emc_request_bye:
-                                  l_rc = emc_raw_event(ev_close_request, nullptr);
-                                  break;
-                          }
+                              } else
+                                  l_rc = err_parse;
+                              break;
+                          case emc_request_ping:
+                              if(l_argc == 2) {
+                                  l_rc = emc_send_pong_response(l_argv[1].get_text());
+                              } else
+                              if(l_argc == 1) {
+                                  l_rc = emc_send_pong_response(nullptr);
+                              } else
+                                  l_rc = err_parse;
+                              break;
+                          case emc_request_bye:
+                              l_rc = emc_raw_event(ev_close_request, nullptr);
+                              break;
                       }
                   }
                   // forward the request to the next stage
@@ -651,8 +647,9 @@ void  gateway::emc_raw_feed_response(char* message, int length) noexcept
                           case emc_response_service:
                               break;
                           case emc_response_pong:
-                              // compute latency
+                              m_trip_ctr.reset();
                               m_ping_await = false;
+                              l_rc = err_okay;
                               break;
                           case '0':
                           case '1':
