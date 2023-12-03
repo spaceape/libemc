@@ -102,11 +102,11 @@ static_assert(message_ping_time <
       m_healthy_bit(false)
 {
       // reserve memory in the queues
-      if constexpr (queue_size_min > 0) {
-          m_recv_data = reinterpret_cast<char*>(::malloc(queue_size_min));
-          m_recv_size = queue_size_min;
-          m_send_data = reinterpret_cast<char*>(::malloc(queue_size_min));
-          m_send_size = queue_size_min;
+      if(m_reserve_min > 0) {
+          m_recv_data = reinterpret_cast<char*>(::malloc(m_reserve_min));
+          m_recv_size = m_reserve_min;
+          m_send_data = reinterpret_cast<char*>(::malloc(m_reserve_min));
+          m_send_size = m_reserve_min;
       }
 }
 
