@@ -160,6 +160,7 @@ int   reactor::emc_raw_event(int id, void* data) noexcept
           case ev_drop:
               emc_raw_drop();
               return err_okay;
+          case ev_soft_fault:
           case ev_hard_fault:
               emc_raw_suspend();
               return err_okay;

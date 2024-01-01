@@ -28,6 +28,9 @@ namespace emc {
 
 using ios = sys::ios;
 
+class rawstage;
+class emcstage;
+
 class reactor;
 class gateway;
 class controller;

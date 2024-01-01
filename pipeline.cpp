@@ -105,6 +105,11 @@ void  rawstage::emc_raw_sync(float) noexcept
 {
 }
 
+auto  rawstage::get_type() const noexcept -> const char*
+{
+      return nullptr;
+}
+
 /* emcstage
 */
       emcstage::emcstage() noexcept:

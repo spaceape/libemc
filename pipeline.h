@@ -59,8 +59,9 @@ class rawstage
           rawstage(const rawstage&) noexcept = delete;
           rawstage(rawstage&&) noexcept = delete;
   virtual ~rawstage();
-          rawstage& operator=(const rawstage&) noexcept = delete;
-          rawstage& operator=(rawstage&&) noexcept = delete;
+  virtual const char* get_type() const noexcept;
+          rawstage&   operator=(const rawstage&) noexcept = delete;
+          rawstage&   operator=(rawstage&&) noexcept = delete;
 };
 
 /* emcstage

@@ -209,11 +209,20 @@ class gateway: public rawstage
           gateway(const gateway&) noexcept = delete;
           gateway(gateway&&) noexcept = delete;
   virtual ~gateway();
+
           bool     attach(emcstage*) noexcept;
           bool     detach(emcstage*) noexcept;
+
+          bool     send_line(const char*, std::size_t = 0u) noexcept;
+          bool     send_packet(int, std::uint8_t*, std::size_t = 0u) noexcept;
+          
           bool     set_drop_time(float) noexcept;
           bool     set_trip_time(float) noexcept;
+          bool     get_resume_state(bool = true) const noexcept;
+          bool     get_healthy_state(bool = true) const noexcept;
+          
           void     flush() noexcept;
+          
           gateway& operator=(const gateway&) noexcept = delete;
           gateway& operator=(gateway&&) noexcept = delete;
 };
