@@ -45,19 +45,19 @@ constexpr int   queue_size_max = 4096;
 /* message_drop_time
  * drop a message if it is not completed within this time interval (in seconds)
 */
-constexpr float message_drop_time = 32.0f;
+constexpr float message_drop_time = 4.0f;
 
 /* message_wait_time
  * generic response timeout
  * should not be greater than message_drop_time, otherwise, message may be dropped while waiting and never be completed.
 */
-constexpr float message_wait_time = 16.0f;
+constexpr float message_wait_time = 2.0f;
 
 /* message_trip_time
  * if silent for this interval, peer should be declared unreachable 
  * should be (much) greater than message_wait_time
 */
-constexpr float message_trip_time = 128.0f;
+constexpr float message_trip_time = 16.0f;
 
 /* message_ping_time
  * if silent for this interval, peer should be queried with a ping message

@@ -40,10 +40,15 @@ static constexpr int  ev_drop = 2;
 */
 static constexpr int  ev_close_request = 3;
 
+/* ev_reset_request
+   signal the reactor that the application requested a pipeline reset
+*/
+static constexpr int  ev_reset_request = 4;
+
 /* ev_hup
    signal the reactor that the endpoint has hung up
 */
-static constexpr int  ev_hup = 4;
+static constexpr int  ev_hup = 5;
 
 /* ev_progess
 */

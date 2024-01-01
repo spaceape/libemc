@@ -29,7 +29,7 @@ namespace emc {
 /* err_okay
    no error, all went smooth
 */
-static constexpr int err_okay = ::err_okay;
+static constexpr int  err_okay = ::err_okay;
 static constexpr char msg_ready[] = "READY";
 
 /* err_parse
