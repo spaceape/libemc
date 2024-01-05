@@ -126,6 +126,16 @@ auto  rawstage::get_type() const noexcept -> const char*
       }
 }
 
+void  emcstage::emc_emit(char c) noexcept
+{
+      p_owner->emc_emit(c);
+}
+
+void  emcstage::emc_emit(int size, const char* text) noexcept
+{
+      p_owner->emc_emit(size, text);
+}
+
 void  emcstage::emc_std_attach(gateway*) noexcept
 {
 }
@@ -171,8 +181,11 @@ void  emcstage::emc_std_process_comment(const char* message, int length) noexcep
 {
 }
 
-int   emcstage::emc_std_process_packet(int, int, std::uint8_t*) noexcept
+int   emcstage::emc_std_process_packet(int channel, int size, std::uint8_t* data) noexcept
 {
+      if(p_stage_next != nullptr) {
+          return p_stage_next->emc_std_process_packet(channel, size, data);
+      }
       return err_okay;
 }
 
@@ -222,13 +235,27 @@ void  emcstage::emc_std_detach(gateway*) noexcept
 {
 }
 
+int   emcstage::emc_error(int code, const char*, ...) noexcept
+{
+      return code;
+}
+
 void  emcstage::emc_std_sync(float) noexcept
 {
 }
 
-auto  emcstage::get_cap_name(int index) const -> const char*
+void  emcstage::describe() noexcept
+{
+}
+
+auto  emcstage::get_layer_name(int index) const noexcept -> const char*
 {
       return nullptr;
+}
+
+int   emcstage::get_layer_state(int index) const noexcept
+{
+      return layer_state_disabled;
 }
 
 /*namespace emc*/ }

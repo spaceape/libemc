@@ -34,7 +34,8 @@ set(inc
 set(srcs
   timer.cpp
   pipeline.cpp
-  gateway.cpp monitor.cpp controller.cpp
+  transport/base16.cpp transport/base64.cpp
+  gateway.cpp monitor.cpp controller.cpp mapper.cpp
   reactor.cpp
 )
 
@@ -42,6 +43,8 @@ set(libs
   host
   ${HOST_LIBS}
 )
+
+add_subdirectory(transport)
 
 add_library(${NAME} ${srcs})
 set_target_properties(${NAME} PROPERTIES PREFIX "${PREFIX}")

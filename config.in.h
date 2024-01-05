@@ -31,6 +31,12 @@ namespace emc {
 */
 constexpr int   mtu_size = 255;
 
+/* device_count_max, stream_count_max
+   how many devices/streams is a single device mapper instance allowed to manage at most
+*/
+constexpr int   device_count_max = 16;
+constexpr int   stream_count_max = 16;
+
 /* queue_size_min
  * minimum size of the message queue - used to reserve memory for the receive and transmit queues;
  * should be at least equal to mtu_size, to at least avoid reallocating very soon
@@ -45,26 +51,26 @@ constexpr int   queue_size_max = 4096;
 /* message_drop_time
  * drop a message if it is not completed within this time interval (in seconds)
 */
-constexpr float message_drop_time = 4.0f;
+constexpr float message_drop_time = 32.0f;
 
 /* message_wait_time
  * generic response timeout
  * should not be greater than message_drop_time, otherwise, message may be dropped while waiting and never be completed.
 */
-constexpr float message_wait_time = 2.0f;
+constexpr float message_wait_time = 8.0f;
 
 /* message_trip_time
  * if silent for this interval, peer should be declared unreachable 
  * should be (much) greater than message_wait_time
 */
-constexpr float message_trip_time = 16.0f;
+constexpr float message_trip_time = 256.0f;
 
 /* message_ping_time
  * if silent for this interval, peer should be queried with a ping message
  * should be greater than message_wait_time to avoid flooding a slow connection with ping messages, but lower than 
  * message_trip_time minus message_wait_time, to make sure a pong message has time to travel back and be processed
 */
-constexpr float message_ping_time = message_trip_time / 2;
+constexpr float message_ping_time = 128.0f;
 
 /* socket_connect_time
 */

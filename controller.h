@@ -26,17 +26,58 @@
 
 namespace emc {
 
+/* controller
+   base class for EMC controller stages
+*/
 class controller: public emcstage
 {
+  protected:
+  inline  void  emc_put() noexcept {
+  }
+
+  template<typename... Args>
+  inline  void  emc_put(char c, Args&&... next) noexcept {
+          emc_emit(c);
+          emc_put(std::forward<Args>(next)...);
+  }
+
+  template<typename... Args>
+  inline  void  emc_put(const char* text, Args&&... next) noexcept {
+          emc_emit(0, text);
+          emc_put(std::forward<Args>(next)...);
+  }
+
+  template<typename... Args>
+  inline  void  emc_put(const fmt::d& value, Args&&... next) noexcept {
+          emc_emit(0, value);
+          emc_put(std::forward<Args>(next)...);
+  }
+
+  template<typename... Args>
+  inline  void  emc_put(const fmt::x& value, Args&&... next) noexcept {
+          emc_emit(0, value);
+          emc_put(std::forward<Args>(next)...);
+  }
+
+  template<typename... Args>
+  inline  void  emc_put(const fmt::X& value, Args&&... next) noexcept {
+          emc_emit(0, value);
+          emc_put(std::forward<Args>(next)...);
+  }
+
+  template<typename... Args>
+  inline  void  emc_put(const fmt::f& value, Args&&... next) noexcept {
+          emc_emit(0, value);
+          emc_put(std::forward<Args>(next)...);
+  }
+
   public:
           controller() noexcept;
           controller(const controller&) noexcept = delete;
           controller(controller&&) noexcept = delete;
           ~controller();
-  virtual const char* get_name() const noexcept = 0;
-  virtual bool        get_enabled(bool = true) const noexcept = 0;
-          controller& operator=(const controller&) noexcept = delete;
-          controller& operator=(controller&&) noexcept = delete;
+          controller&  operator=(const controller&) noexcept = delete;
+          controller&  operator=(controller&&) noexcept = delete;
 };
 
 /*namespace emc*/ }

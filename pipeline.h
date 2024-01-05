@@ -72,10 +72,16 @@ class emcstage
   emcstage*     p_stage_prev;
   emcstage*     p_stage_next;
 
+  public:
+  static constexpr int layer_state_disabled = 0;
+  static constexpr int layer_state_enabled = 1;
+
   protected:
   gateway*      p_owner;
 
   protected:
+          void  emc_emit(char) noexcept;
+          void  emc_emit(int, const char*) noexcept;
   virtual void  emc_std_attach(gateway*) noexcept;
   virtual bool  emc_std_resume(gateway*) noexcept;
   virtual void  emc_std_join() noexcept;
@@ -93,6 +99,7 @@ class emcstage
   virtual void  emc_std_suspend(gateway*) noexcept;
   virtual int   emc_std_event(int, void*) noexcept;
   virtual void  emc_std_detach(gateway*) noexcept;
+          int   emc_error(int, const char*, ...) noexcept;
   virtual void  emc_std_sync(float) noexcept;
 
   protected:
@@ -103,9 +110,11 @@ class emcstage
           emcstage(const emcstage&) noexcept = delete;
           emcstage(emcstage&&) noexcept = delete;
   virtual ~emcstage();
-  virtual const char* get_cap_name(int) const;
-          emcstage&   operator=(const emcstage&) noexcept = delete;
-          emcstage&   operator=(emcstage&&) noexcept = delete;
+  virtual void         describe() noexcept;
+  virtual const char*  get_layer_name(int) const noexcept;
+  virtual int          get_layer_state(int) const noexcept;
+          emcstage&    operator=(const emcstage&) noexcept = delete;
+          emcstage&    operator=(emcstage&&) noexcept = delete;
 };
 
 /*namespace emc*/ }

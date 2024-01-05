@@ -1,7 +1,7 @@
-#ifndef emc_h
-#define emc_h
+#ifndef emc_transport_uart_h
+#define emc_transport_uart_h
 /** 
-    Copyright (c) 2023, wicked systems
+    Copyright (c) 2024, wicked systems
     All rights reserved.
 
     Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following
@@ -21,33 +21,43 @@
     CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
     EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 **/
-#include <global.h>
-#include <sys/ios.h>
+#include <emc.h>
+#include <emc/pipeline.h>
 
 namespace emc {
+namespace transport {
 
-using ios = sys::ios;
-
-class rawstage;
-class emcstage;
-
-class reactor;
-class gateway;
-class controller;
-class monitor;
-
-/* packet_head_size
+/* uart
+   Transport stage which encodes/decodes binary data in packets
 */
-constexpr int packet_head_size = 4;
-constexpr int packet_size_multiplier = 16;
-constexpr int packet_size_max = packet_size_multiplier * (1 << (packet_head_size - 1) << 2);
+class uart: public emc::emcstage
+{
+  int             m_format;
+  std::uint8_t*   m_cache_ptr;
+  int             m_cache_size;
+  bool            m_ready_bit;
 
-/* chid_*
-   channel IDs
-*/
-constexpr int chid_none = 0;
-constexpr int chid_min = 1;
-constexpr int chid_max = 127;
+  public:
+  static constexpr int codec_format_none = 0;
+  static constexpr int codec_format_base16 = 1;
+  static constexpr int codec_format_base64 = 2;
+  protected:
+          bool    emi_cache_reserve(int) noexcept;
+          void    emi_cache_dispose() noexcept;
+  virtual bool    emc_std_resume(emc::gateway*) noexcept override;
+  virtual int     emc_std_process_packet(int, int, std::uint8_t*) noexcept override;
+  virtual int     emc_std_return_packet(int, int, std::uint8_t*) noexcept override;
+  virtual void    emc_std_suspend(emc::gateway*) noexcept override;
 
+  public:
+          uart() noexcept;
+          uart(const uart&) noexcept = delete;
+          uart(uart&&) noexcept = delete;
+  virtual ~uart();
+          uart&   operator=(const uart&) noexcept = delete;
+          uart&   operator=(uart&&) noexcept = delete;
+};
+
+/*namespace transport*/ }
 /*namespace emc*/ }
 #endif

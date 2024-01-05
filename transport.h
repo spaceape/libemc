@@ -1,7 +1,7 @@
-#ifndef emc_h
-#define emc_h
+#ifndef emc_transport_h
+#define emc_transport_h
 /** 
-    Copyright (c) 2023, wicked systems
+    Copyright (c) 2024, wicked systems
     All rights reserved.
 
     Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following
@@ -21,33 +21,16 @@
     CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
     EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 **/
-#include <global.h>
-#include <sys/ios.h>
+#include <emc.h>
 
 namespace emc {
+namespace transport {
 
-using ios = sys::ios;
+void  base16_encode(std::uint8_t* dst, std::uint8_t* src, int size) noexcept;
+void  base16_decode(std::uint8_t* dst, std::uint8_t* src, int size) noexcept;
+void  base64_encode(std::uint8_t* dst, std::uint8_t* src, int size) noexcept;
+void  base64_decode(std::uint8_t* dst, std::uint8_t* src, int size) noexcept;
 
-class rawstage;
-class emcstage;
-
-class reactor;
-class gateway;
-class controller;
-class monitor;
-
-/* packet_head_size
-*/
-constexpr int packet_head_size = 4;
-constexpr int packet_size_multiplier = 16;
-constexpr int packet_size_max = packet_size_multiplier * (1 << (packet_head_size - 1) << 2);
-
-/* chid_*
-   channel IDs
-*/
-constexpr int chid_none = 0;
-constexpr int chid_min = 1;
-constexpr int chid_max = 127;
-
+/*namespace transport*/ }
 /*namespace emc*/ }
 #endif

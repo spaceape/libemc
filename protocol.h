@@ -32,14 +32,17 @@ constexpr char emc_tag_response = ']';
 constexpr char emc_tag_sync = '@';
 
 constexpr char emc_request_info = 'i';
+constexpr char emc_request_service = 's';
 constexpr char emc_request_ping = 'g';
 constexpr char emc_request_bye = 'z';
 
-constexpr char emc_response_info = 'i';
-constexpr char emc_response_cap = 'c';
-constexpr char emc_response_service = 's';
-constexpr char emc_response_pong = 'g';
 constexpr char emc_response_okay = '0';
+constexpr char emc_response_info = 'i';
+constexpr char emc_response_service = 's';
+constexpr char emc_response_support = 'p';
+constexpr char emc_response_channel = 'c';
+constexpr char emc_response_pong = 'g';
+constexpr char emc_response_eol = 'e';
 constexpr char emc_response_bye = 'z';
 constexpr char emc_packet_header_size = 4;  // size of a packet header: 1 byte denoting the channel + 3 for size
 

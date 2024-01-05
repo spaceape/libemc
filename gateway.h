@@ -23,7 +23,6 @@
 **/
 #include "emc.h"
 #include "pipeline.h"
-#include "protocol.h"
 #include "error.h"
 #include "timer.h"
 
@@ -34,18 +33,16 @@ namespace emc {
 */
 class gateway: public rawstage
 {
-  char*     m_recv_data;
-  int       m_recv_iter;
-  int       m_recv_size;
-  int       m_recv_packet_left;
-  int       m_recv_packet_size;
-  int       m_recv_mtu;
-  int       m_recv_state;
+  std::uint8_t* m_recv_data;
+  int           m_recv_iter;
+  int           m_recv_size;
+  int           m_recv_mtu;
+  int           m_recv_state;
 
-  char*     m_send_data;
-  int       m_send_iter;
-  int       m_send_size;
-  int       m_send_mtu;
+  std::uint8_t* m_send_data;
+  int           m_send_iter;
+  int           m_send_size;
+  int           m_send_mtu;
 
   sys::argv m_args;                     // request/response command line
   emcstage* p_stage_head;
@@ -54,6 +51,11 @@ class gateway: public rawstage
   private:
   char      m_gate_name[emc_name_size];
   char      m_gate_info[emc_info_size];
+  int       m_recv_packet_chid;
+  int       m_recv_packet_left;
+  int       m_recv_packet_size;
+  int       m_send_packet_chid;
+  int       m_send_packet_size;
   float     m_gate_ping_time;           // time of silence before triggering a ping
   float     m_gate_info_time;           // time to wait for an info response, before sending an info request
   float     m_gate_wait_time;     
@@ -101,14 +103,19 @@ class gateway: public rawstage
   bool      m_join_bit;                 // raw connection is up
   bool      m_healthy_bit;              // emc connection is up and healthy
 
+  protected:
+          void  emc_emit(char) noexcept;
+          void  emc_emit(int, const char*) noexcept;
+          int   emc_reserve_packet(int, int, std::uint8_t*&) noexcept;
+          bool  emc_emit_packet() noexcept;
+          bool  emc_drop_packet() noexcept;
+
   private:
-          void    emc_emit(char) noexcept;
-          void    emc_emit(int, const char*) noexcept;
-          char*   emc_reserve(int) noexcept;
-          bool    emc_resume_at(emcstage*) noexcept;
-          void    emc_suspend_at(emcstage*) noexcept;
-          void    emc_dispatch_join() noexcept;
-          void    emc_dispatch_drop() noexcept;
+          auto  emc_reserve(int) noexcept -> std::uint8_t*;
+          bool  emc_resume_at(emcstage*) noexcept;
+          void  emc_suspend_at(emcstage*) noexcept;
+          void  emc_dispatch_join() noexcept;
+          void  emc_dispatch_drop() noexcept;
 
   protected:
   inline  void  emc_put() noexcept {
@@ -153,8 +160,8 @@ class gateway: public rawstage
           int     emc_send_ready_response() noexcept;
           int     emc_send_info_response() noexcept;
           void    emc_send_info_request() noexcept;
-          void    emc_send_caps_response() noexcept;
-          int     emc_send_service_response() noexcept;
+          void    emc_send_service_response() noexcept;
+          void    emc_send_support_response() noexcept;
           void    emc_send_ping_request() noexcept;
           int     emc_send_pong_response(const char*) noexcept;
           int     emc_send_bye_response() noexcept;
@@ -214,8 +221,10 @@ class gateway: public rawstage
           bool     detach(emcstage*) noexcept;
 
           bool     send_line(const char*, std::size_t = 0u) noexcept;
-          bool     send_packet(int, std::uint8_t*, std::size_t = 0u) noexcept;
-          
+          int      reserve_packet(int, std::size_t, std::uint8_t*&) noexcept;
+          bool     emit_packet() noexcept;
+          bool     drop_packet() noexcept;
+
           bool     set_drop_time(float) noexcept;
           bool     set_trip_time(float) noexcept;
           bool     get_resume_state(bool = true) const noexcept;

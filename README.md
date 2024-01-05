@@ -165,17 +165,21 @@ Controllers are a subset of EMC stages which provide a services to the _controll
 through the command line interface. Each controller extends the base protocol with an unique set
 of commands through which it can be interacted with, called a _Layer_.
 
-## 2.6. Devices and Features
+## 2.6. Devices and Streams
 
-Devices implement high bandwith software interfaces to _features_ on the machine. As opposed to
-Controllers, Devices do *not* need to define their own commands, but instead are accessible via
-the "**dev**" layer, using commands such as:
+Devices implement high bandwith software interfaces to _streams_ on the machine. As opposed to
+generic controllers, Devices do *not* need to define their own commands, but are instead accessible
+via the "**dev**" layer, using commands such as:
 
   - `support`
-  - `describe [<feature>]`
+  - `describe [<device>]`
+  - `control`
   - `open`
-  - `reopen`
   - `close`
+  - `sync`
+
+EMC manages devices and streams via special called a _mapper_, which can be further specialized
+for a multitude of device types and functions.
 
 ## 2.7. Services
 
@@ -188,6 +192,10 @@ connect via the `s+` command.
                   EMC    
       [service] <-----> [interface]
 
+
+  - `get_layer_name`: name for the controller/layer; if `nullptr`, controller will be hidden from the
+    support list
+  - `get_enabled`: indicates whether or not the service is active
 
 # 3. The EMC Protocol
 
@@ -246,9 +254,9 @@ connect via the `s+` command.
 
 ### 3.3.5. `]0` - the `OK` response
 
-### 3.3.6. `]\d+` - the error response
+### 3.3.6. `]\x+` - the error response
 ```
-  HEX := [0-9A-Fa-f]
+  HEX := [0-9A-F]
   RESPONSE := ']' HEX{2} .* EOL
 ```
 
@@ -257,12 +265,43 @@ connect via the `s+` command.
   RESPONSE := ']' 'z' .* EOL
 ```
 
+## 3.4. The `dev` layer
+
+### 3.4.1. The `support` request
+
+### 3.4.2. The `describe` request
+
+### 3.4.3. The `open` request
+
+> o <channel> <device> [<option>...]
+> o * <device> [<options>...]
+> o 0 <device> [<options>...]
+
+### 3.4.4. The `control` request
+
+> ctl <channel> +sync
+> ctl <channel> -sync
+
+### 3.4.5. The `read` request/event
+
+> r <channel> <offset> <size>
+
+### 3.4.6. The `write` request/event
+
+> w <channel> <offset>
+
+### 3.4.7. The `close` request
+
+> x <channel>
+
+### 3.4.8. The `sync` request
+
 ## 3.6. Services
 
 ## 3.7. Channels
 ```
   HEX := [0-9A-Fa-f]
-  SIZE := HEX{3}
+  SIZE := BYTE{3}
   RESPONSE := [\x80-\xfe] SIZE DATA{SIZE} EOL
 ```
   CHANNEL = EOF - C
