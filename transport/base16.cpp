@@ -21,7 +21,11 @@
 **/
 #include <emc.h>
 
-static const char s_base16_decode_map[128] = {
+static const char s_base16_encode_map[256] = {
+    '0', '1', '2', '3', '4', '5', '6', '7',  '8', '9', 'a', 'b', 'c', 'd', 'e', 'f',
+};
+
+static const char s_base16_decode_map[256] = {
     0,   0,   0,   0,   0,   0,   0,   0,    0,   0,   0,   0,   0,   0,   0,   0,
     0,   0,   0,   0,   0,   0,   0,   0,    0,   0,   0,   0,   0,   0,   0,   0,
     0,   0,   0,   0,   0,   0,   0,   0,    0,   0,   0,   0,   0,   0,   0,   0,
@@ -36,32 +40,22 @@ static const char s_base16_decode_map[128] = {
 namespace emc {
 namespace transport {
 
-void  base16_encode(std::uint8_t* __restrict  dst, std::uint8_t* __restrict src, int size) noexcept
+void  base16_encode(std::uint8_t* dst, std::uint8_t* src, int size) noexcept
 {
       std::uint8_t* p_dst = dst;
       std::uint8_t* p_src = src;
       std::uint8_t* p_end = src + size;
-      int  l_nibble;
+      int  hex;
       while(p_src < p_end) {
-          l_nibble = (*p_src & 0xf0) >> 4;
-          if((l_nibble >= 0x00) && (l_nibble <= 0x09)) {
-              *(p_dst++) = '0' + l_nibble;
-          } else
-          if((l_nibble >= 0x0a) && (l_nibble <= 0x0f)) {
-              *(p_dst++) = 'a' + l_nibble - 10;
-          }
-          l_nibble = (*p_src & 0x0f);
-          if((l_nibble >= 0x00) && (l_nibble <= 0x09)) {
-              *(p_dst++) = '0' + l_nibble;
-          } else
-          if((l_nibble >= 0x0a) && (l_nibble <= 0x0f)) {
-              *(p_dst++) = 'a' + l_nibble - 10;
-          }
+          hex = (*p_src & 0xf0) >> 4;
+          *(p_dst++) = s_base16_encode_map[hex];
+          hex = (*p_src & 0x0f);
+          *(p_dst++) = s_base16_encode_map[hex];
           p_src++;
       }
 }
 
-void  base16_decode(std::uint8_t* __restrict dst, std::uint8_t* __restrict  src, int size) noexcept
+void  base16_decode(std::uint8_t* dst, std::uint8_t* src, int size) noexcept
 {
       std::uint8_t* p_dst = dst;
       std::uint8_t* p_src = src;

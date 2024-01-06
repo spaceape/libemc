@@ -566,7 +566,7 @@ int   mapper::emc_std_process_packet(int channel, int size, std::uint8_t* data) 
                       l_packet_size = get_div_ub(size * 3, 4);
                       p_packet_data = mpi_cache_reserve(l_packet_size);
                       if(p_packet_data != nullptr) {
-                          emc::transport::base64_decode(p_packet_data, data, l_packet_size);
+                          emc::transport::base64_decode(p_packet_data, data, size);
                       } else
                           l_packet_rc = emc::err_fail;
                   } else
@@ -574,10 +574,11 @@ int   mapper::emc_std_process_packet(int channel, int size, std::uint8_t* data) 
                       l_packet_size = get_div_ub(size, 2);
                       p_packet_data = mpi_cache_reserve(l_packet_size);
                       if(p_packet_data != nullptr) {
-                          emc::transport::base16_decode(p_packet_data, data, l_packet_size);
+                          emc::transport::base16_decode(p_packet_data, data, size);
                       } else
                           l_packet_rc = emc::err_fail;
                   }
+                  // dispatch the buffer to the high level devices
                   if(l_packet_rc == emc::err_okay) {
                       mpi_recv(p_stream, p_packet_data, l_packet_size);
                   }
