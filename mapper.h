@@ -29,42 +29,52 @@ namespace emc {
 /* device_t, stream_t
    device and stream descriptors
 */
-constexpr int  device_name_size = 8;
+constexpr int   device_name_size = 8;
 
-constexpr std::uint8_t edf_none = 0u;
-constexpr std::uint8_t edf_allow_recv  = 0x01;
-constexpr std::uint8_t edf_allow_send  = 0x02;
-constexpr std::uint8_t edf_allow_seek  = 0x04;
-constexpr std::uint8_t edf_allow_sync  = 0x08;
-constexpr std::uint8_t edf_mode_binary = 0x80;
+constexpr char  edm_flag_none = '-';
+constexpr char  edm_flag_recv = 'r';
+constexpr char  edm_flag_send = 'w';
+constexpr char  edm_flag_binary = 'b';
+constexpr char  edm_flag_encode_base16 = 'h';
+constexpr char  edm_flag_encode_base64 = 's';
+
+constexpr std::uint8_t  edf_none = 0u;
+constexpr std::uint8_t  edf_allow_recv  = 0x01;
+constexpr std::uint8_t  edf_allow_send  = 0x02;
+constexpr std::uint8_t  edf_allow_seek  = 0x04;
+constexpr std::uint8_t  edf_allow_sync  = 0x08;
+constexpr std::uint8_t  edf_mode_binary = 0x80;
 
 constexpr std::uint8_t edt_none = 0u;
 
 struct device_t
 {
-  std::uint8_t ed_type;
-  std::uint8_t ed_flags;
-  std::int8_t  ed_instance_count;
-  std::int8_t  ed_instance_limit;
-  const char*  ed_name;
+  std::uint8_t    ed_type;
+  std::uint8_t    ed_flags;
+  std::int8_t     ed_instance_count;
+  std::int8_t     ed_instance_limit;
+  const char*     ed_name;
 };
 
-constexpr std::uint8_t esf_none = 0u;
-constexpr std::uint8_t esf_mode_recv = edf_allow_recv;
-constexpr std::uint8_t esf_mode_send = edf_allow_send;
-constexpr std::uint8_t esf_mode_sync = edf_allow_sync;
-constexpr std::uint8_t esf_encoding_base16 = 0x10;
-constexpr std::uint8_t esf_encoding_base64 = 0x40;
+constexpr std::uint8_t  esf_none = 0u;
+constexpr std::uint8_t  esf_mode_recv = edf_allow_recv;
+constexpr std::uint8_t  esf_mode_send = edf_allow_send;
+constexpr std::uint8_t  esf_mode_seek = edf_allow_seek;
+constexpr std::uint8_t  esf_mode_sync = edf_allow_sync;
+constexpr std::uint8_t  esf_encoding_base16 = 0x10;
+constexpr std::uint8_t  esf_encoding_base64 = 0x40;
+constexpr std::uint8_t  esf_encoding_binary = edf_mode_binary;
+constexpr std::uint8_t  esf_encoding_any = esf_encoding_base16 | esf_encoding_base64;
 
 struct stream_t
 {
-  std::uint8_t  es_type;
-  std::int8_t   es_device;
-  std::int8_t   es_channel;
-  std::uint8_t  es_flags;
-  int           es_rate;
-  int           es_offset;
-  int           es_size;
+  std::uint8_t    es_type;
+  std::int8_t     es_device;
+  std::int8_t     es_channel;
+  std::uint8_t    es_flags;
+  int             es_rate;
+  int             es_offset;
+  int             es_size;
 };
 
 /* mapper
@@ -72,6 +82,9 @@ struct stream_t
 */
 class mapper: public emc::controller
 {
+  emc::gateway*   p_gateway;
+  std::uint8_t*   m_cache_data;
+  int             m_cache_size;
   emc::stream_t   m_stream_list[16];
   int             m_search_index;
   int             m_stream_count;
@@ -79,6 +92,10 @@ class mapper: public emc::controller
   protected:
   emc::device_t   m_device_list[16];
   int             m_device_count;
+
+  private:
+          auto    mpi_cache_reserve(int) noexcept -> std::uint8_t*;
+          void    mpi_cache_dispose() noexcept;
 
   protected:
           auto    mpi_find_channel() noexcept -> std::int8_t;
@@ -93,6 +110,7 @@ class mapper: public emc::controller
   virtual bool    mpi_get_device_info(emc::device_t*, char*, int) noexcept;
   virtual bool    mpi_get_stream_info(emc::stream_t*, char*, int) noexcept;
   virtual int     mpi_open_stream(emc::stream_t*, emc::device_t*, const sys::argv&) noexcept;
+  virtual void    mpi_recv(emc::stream_t*, std::uint8_t*, int) noexcept;
   virtual int     mpi_close_stream(emc::stream_t*) noexcept;
 
           void    mpi_send_support_event(emc::device_t*, char) noexcept;
@@ -101,8 +119,11 @@ class mapper: public emc::controller
           void    mpi_send_support_response() noexcept;
           void    mpi_send_eol() noexcept;
 
+  virtual void    emc_std_attach(gateway*) noexcept override;
   virtual int     emc_std_process_request(int, const sys::argv&) noexcept override;
   virtual int     emc_std_process_response(int, const sys::argv&) noexcept override;
+  virtual int     emc_std_process_packet(int, int, std::uint8_t*) noexcept override;
+  virtual void    emc_std_detach(gateway*) noexcept override;
   virtual void    emc_std_sync(float) noexcept override;
 
   public:

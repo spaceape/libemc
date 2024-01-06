@@ -21,7 +21,7 @@
 **/
 #include <emc.h>
 
-static const char s_base16_map[256] = {
+static const char s_base16_decode_map[128] = {
     0,   0,   0,   0,   0,   0,   0,   0,    0,   0,   0,   0,   0,   0,   0,   0,
     0,   0,   0,   0,   0,   0,   0,   0,    0,   0,   0,   0,   0,   0,   0,   0,
     0,   0,   0,   0,   0,   0,   0,   0,    0,   0,   0,   0,   0,   0,   0,   0,
@@ -30,38 +30,50 @@ static const char s_base16_map[256] = {
     0,  10,  11,  12,  13,  14,  15,   0,    0,   0,   0,   0,   0,   0,   0,   0,
     0,   0,   0,   0,   0,   0,   0,   0,    0,   0,   0,   0,   0,   0,   0,   0,
     0,  10,  11,  12,  13,  14,  15,   0,    0,   0,   0,   0,   0,   0,   0,   0,
-    0,   0,   0,   0,   0,   0,   0,   0,    0,   0,   0,   0,   0,   0,   0,   0,
-
-    0,   0,   0,   0,   0,   0,   0,   0,    0,   0,   0,   0,   0,   0,   0,   0,
-    0,   0,   0,   0,   0,   0,   0,   0,    0,   0,   0,   0,   0,   0,   0,   0,
-    0,   0,   0,   0,   0,   0,   0,   0,    0,   0,   0,   0,   0,   0,   0,   0,
-    0,   0,   0,   0,   0,   0,   0,   0,    0,   0,   0,   0,   0,   0,   0,   0,
-
-    0,   0,   0,   0,   0,   0,   0,   0,    0,   0,   0,   0,   0,   0,   0,   0,
-    0,   0,   0,   0,   0,   0,   0,   0,    0,   0,   0,   0,   0,   0,   0,   0,
-    0,   0,   0,   0,   0,   0,   0,   0,    0,   0,   0,   0,   0,   0,   0,   0,
     0,   0,   0,   0,   0,   0,   0,   0,    0,   0,   0,   0,   0,   0,   0,   0
 };
 
 namespace emc {
 namespace transport {
 
-void  base16_encode(std::uint8_t* dst, std::uint8_t* src, int size) noexcept
-{
-}
-
-void  base16_decode(std::uint8_t* dst, std::uint8_t* src, int size) noexcept
+void  base16_encode(std::uint8_t* __restrict  dst, std::uint8_t* __restrict src, int size) noexcept
 {
       std::uint8_t* p_dst = dst;
       std::uint8_t* p_src = src;
       std::uint8_t* p_end = src + size;
+      int  l_nibble;
       while(p_src < p_end) {
-          *p_dst = s_base16_map[*(p_src++)];
-          if(p_src < p_end) {
-              *p_dst <<= 4;
-              *p_dst |=  s_base16_map[*(p_src++)];
+          l_nibble = (*p_src & 0xf0) >> 4;
+          if((l_nibble >= 0x00) && (l_nibble <= 0x09)) {
+              *(p_dst++) = '0' + l_nibble;
+          } else
+          if((l_nibble >= 0x0a) && (l_nibble <= 0x0f)) {
+              *(p_dst++) = 'a' + l_nibble - 10;
           }
+          l_nibble = (*p_src & 0x0f);
+          if((l_nibble >= 0x00) && (l_nibble <= 0x09)) {
+              *(p_dst++) = '0' + l_nibble;
+          } else
+          if((l_nibble >= 0x0a) && (l_nibble <= 0x0f)) {
+              *(p_dst++) = 'a' + l_nibble - 10;
+          }
+          p_src++;
+      }
+}
+
+void  base16_decode(std::uint8_t* __restrict dst, std::uint8_t* __restrict  src, int size) noexcept
+{
+      std::uint8_t* p_dst = dst;
+      std::uint8_t* p_src = src;
+      std::uint8_t* p_end = src + (size & (~1));
+      while(p_src < p_end) {
+          *p_dst = s_base16_decode_map[*(p_src++)];
+          *p_dst <<= 4;
+          *p_dst |= s_base16_decode_map[*(p_src++)];
           p_dst++;
+      }
+      if(size & 1) {
+          *p_dst = s_base16_decode_map[*(p_src++)];
       }
 }
 

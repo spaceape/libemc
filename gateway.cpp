@@ -24,6 +24,8 @@
 #include <config.h>
 #include "event.h"
 #include "protocol.h"
+#include "mapper.h"
+#include "transport.h"
 #include "error.h"
 #include <convert.h>
 #include <cstring>
@@ -88,6 +90,8 @@ static_assert(message_ping_time <
       m_gate_wait_time(message_wait_time),
       m_gate_drop_time(message_drop_time),
       m_gate_trip_time(message_trip_time),
+      m_bt16(options & o_bt16),
+      m_bt64(options & o_bt64),
       m_flush_auto(options & o_flush_auto),
       m_flush_sync(false),
       m_ping_ctr(false),
@@ -183,7 +187,7 @@ void  gateway::emc_emit(int size, const char* text) noexcept
       }
 }
 
-int   gateway::emc_reserve_packet(int channel, int size, std::uint8_t*& data) noexcept
+bool  gateway::emc_prepare_packet(int channel, int size) noexcept
 {
       if((m_send_iter == 0) &&
           (m_send_packet_chid == chid_none)) {
@@ -191,40 +195,86 @@ int   gateway::emc_reserve_packet(int channel, int size, std::uint8_t*& data) no
               (channel <= chid_max)) {
               if((size >= 0) &&
                   (size < packet_size_max)) {
-                  std::uint8_t* l_packet_base = m_send_data;
-                  int           l_packet_size = get_round_value(size, packet_size_multiplier);
-                  if(size > 0) {
-                      int   l_counter_size = packet_head_size - 1;
-                      bool  l_reserve_success = emc_reserve(packet_head_size + l_packet_size);
-                      if(l_reserve_success == false) {
-                          return 0;
-                      };
+                  int   l_packet_size = get_round_value(size, packet_size_multiplier);
+                  int   l_member_size = packet_head_size - 1;
+                  bool  l_reserve_success = emc_reserve(packet_head_size);
+                  if(l_reserve_success) {
                       emc_emit(EOF - channel);
-                      emc_emit(l_counter_size, fmt::x(l_packet_size / packet_size_multiplier, l_counter_size));
-                      std::memset(m_send_data + packet_head_size, 0, l_packet_size);
-                      m_send_iter = packet_head_size + l_packet_size;
+                      emc_emit(l_member_size, fmt::x(l_packet_size / packet_size_multiplier, l_member_size));
+                      m_send_packet_chid = channel;
+                      m_send_packet_size = l_packet_size;
+                      m_send_iter        = packet_head_size;
+                      return true;
                   }
-                  data               = l_packet_base + packet_head_size;
-                  m_send_packet_chid = channel;
-                  m_send_packet_size = l_packet_size;
-                  return l_packet_size;
               }
           }
       }
-      return 0;
+      return false;
+}
+
+bool  gateway::emc_reserve_packet(std::uint8_t*& data, int size) noexcept
+{
+      if(m_send_packet_chid != chid_none) {
+          std::uint8_t* l_packet_base = emc_reserve(m_send_packet_size);
+          if(l_packet_base != nullptr) {
+              int  l_fill_size;
+              int  l_zero_size;
+              if(size <= m_send_packet_size) {
+                  l_fill_size = size;
+              } else
+                  l_fill_size = m_send_packet_size;
+              if(l_fill_size > 0) {
+                  data = l_packet_base;
+              }
+              l_zero_size = m_send_packet_size - l_fill_size;
+              if(l_zero_size > 0) {
+                  std::memset(l_packet_base + l_fill_size, 0, l_zero_size);
+              }
+              m_send_iter += m_send_packet_size;
+              return true;
+          }
+      }
+      return false;
+}
+
+bool  gateway::emc_fill_packet(std::uint8_t* data, int size) noexcept
+{
+      if(m_send_packet_chid != chid_none) {
+          std::uint8_t* l_packet_base = emc_reserve(m_send_packet_size);
+          if(l_packet_base != nullptr) {
+              int  l_copy_size;
+              int  l_zero_size;
+              if(size <= m_send_packet_size) {
+                  l_copy_size = size;
+              } else
+                  l_copy_size = m_send_packet_size;
+              if(l_copy_size > 0) {
+                  std::memcpy(l_packet_base, data, l_copy_size);
+              }
+              l_zero_size = m_send_packet_size - l_copy_size;
+              if(l_zero_size > 0) {
+                  std::memset(l_packet_base + l_copy_size, 0, l_zero_size);
+              }
+              m_send_iter += m_send_packet_size;
+              return true;
+          }
+      }
+      return false;
+}
+
+bool  gateway::emc_zero_packet() noexcept
+{
+      return emc_fill_packet(nullptr, 0);
 }
 
 bool  gateway::emc_emit_packet() noexcept
 {
       int l_send_rc;
       if(m_send_packet_chid != chid_none) {
-          l_send_rc = err_okay;
-          if(m_send_packet_size > 0) {
-              l_send_rc   = emc_raw_send(m_send_data, m_send_iter);
-              m_send_iter = 0;
-          }
+          l_send_rc = emc_raw_send(m_send_data, m_send_iter);
           m_send_packet_chid = chid_none;
           m_send_packet_size = 0;
+          m_send_iter = 0;
           if(l_send_rc == err_okay) {
               return true;
           }
@@ -1309,26 +1359,96 @@ bool  gateway::send_line(const char* message, std::size_t length) noexcept
       return false;
 }
 
-int   gateway::reserve_packet(int channel, std::size_t size, std::uint8_t*& data) noexcept
-{
-      return emc_reserve_packet(channel, size, data);
-}
-
-bool  gateway::emit_packet() noexcept
+bool  gateway::send_packet_raw(int channel, std::uint8_t* data, std::size_t size) noexcept
 {
       if(m_resume_bit) {
           if(m_healthy_bit) {
               if(m_user_role) {
-                  return emc_emit_packet();
+                  if(emc_prepare_packet(channel, size)) {
+                      int  l_packet_size    = m_send_packet_size;
+                      int  l_packet_padding = l_packet_size - size;
+                      if((l_packet_size > m_send_size) ||
+                          (l_packet_size > global::cache_large_max)) {
+                          // strategy for large packets: send in 3 chunks: header, data and padding
+                          if(emc_emit_packet() == false) {
+                              return false;
+                          }
+                          if(emc_raw_send(data, size) != emc::err_okay) {
+                              return false;
+                          }
+                          // if necessary, pad the buffer and send the padding out; use the send buffer, since it's already
+                          // secured by `emc_prepare_packet()`
+                          if(l_packet_padding > 0) {
+                              if(emc_reserve(l_packet_padding) == nullptr) {
+                                  return false;
+                              }
+                              std::memset(m_send_data, 0, l_packet_padding);
+                              if(emc_raw_send(m_send_data, l_packet_padding) != err_okay) {
+                                  return false;
+                              }
+                          }
+                      } else
+                      if(l_packet_size > 0) {
+                          // strategy for smaller packets: copy into the internal buffer and send in one shot
+                          if(emc_fill_packet(data, size) == false) {
+                              return false;
+                          }
+                          if(emc_emit_packet() == false) {
+                              return false;
+                          }   
+                      }
+                      return true;
+                  }
               }
           }
       }
       return false;
 }
 
-bool  gateway::drop_packet() noexcept
+bool  gateway::send_packet_base16(int channel, std::uint8_t* data, std::size_t size) noexcept
 {
-      return emc_drop_packet();
+      if(m_resume_bit) {
+          if(m_healthy_bit) {
+              if(m_user_role) {
+                  if(size < std::numeric_limits<int>::max() / 2) {
+                      std::uint8_t* l_packet_base;
+                      int           l_packet_size = static_cast<int>(size) * 2;
+                      if(emc_prepare_packet(channel, l_packet_size)) {
+                          if(emc_reserve_packet(l_packet_base, l_packet_size)) {
+                              emc::transport::base16_encode(l_packet_base, data, m_send_packet_size);
+                              if(emc_emit_packet()) {
+                                  return true;
+                              }
+                          }
+                      }
+                  }
+              }
+          }
+      }
+      return false;
+}
+
+bool  gateway::send_packet_base64(int channel, std::uint8_t* data, std::size_t size) noexcept
+{
+      if(m_resume_bit) {
+          if(m_healthy_bit) {
+              if(m_user_role) {
+                  if(size < std::numeric_limits<int>::max() / 4) {
+                      std::uint8_t* l_packet_base;
+                      int           l_packet_size = get_round_value(static_cast<int>(size) * 4 / 3, 4);
+                      if(emc_prepare_packet(channel, l_packet_size)) {
+                          if(emc_reserve_packet(l_packet_base, l_packet_size)) {
+                              emc::transport::base64_encode(l_packet_base, data, m_send_packet_size);
+                              if(emc_emit_packet()) {
+                                  return true;
+                              }
+                          }
+                      }
+                  }
+              }
+          }
+      }
+      return false;
 }
 
 bool  gateway::set_drop_time(float value) noexcept
@@ -1349,6 +1469,23 @@ bool  gateway::set_trip_time(float value) noexcept
           return true;
       }
       return false;
+}
+
+bool  gateway::has_binary_transport_flags() const noexcept
+{
+      return has_binary_transport_flags(emc::esf_encoding_any);
+}
+
+bool  gateway::has_binary_transport_flags(unsigned int value) const noexcept
+{
+      bool l_result = false;
+      if((value & emc::esf_encoding_base16) != emc::esf_none) {
+          l_result |= m_bt16;
+      } else
+      if((value & emc::esf_encoding_base64) != emc::esf_none) {
+          l_result |= m_bt64;
+      }
+      return l_result;
 }
 
 bool  gateway::get_resume_state(bool value) const noexcept

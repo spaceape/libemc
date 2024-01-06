@@ -44,69 +44,76 @@ class gateway: public rawstage
   int           m_send_size;
   int           m_send_mtu;
 
-  sys::argv m_args;                     // request/response command line
-  emcstage* p_stage_head;
-  emcstage* p_stage_tail;
+  sys::argv     m_args;                     // request/response command line
+  emcstage*     p_stage_head;
+  emcstage*     p_stage_tail;
 
   private:
-  char      m_gate_name[emc_name_size];
-  char      m_gate_info[emc_info_size];
-  int       m_recv_packet_chid;
-  int       m_recv_packet_left;
-  int       m_recv_packet_size;
-  int       m_send_packet_chid;
-  int       m_send_packet_size;
-  float     m_gate_ping_time;           // time of silence before triggering a ping
-  float     m_gate_info_time;           // time to wait for an info response, before sending an info request
-  float     m_gate_wait_time;     
-  float     m_gate_drop_time;           // time of silence before any incomplete message is discarded
-  float     m_gate_trip_time;           // time of silence before the machine is declared disconnected
-  bool      m_flush_auto;               // send pending data as soon as EOL is written to the data buffer
-  bool      m_flush_sync;               // send pending data upon sync() [[not implemented]]
+  char          m_gate_name[emc_name_size];
+  char          m_gate_info[emc_info_size];
+  int           m_recv_packet_chid;
+  int           m_recv_packet_left;
+  int           m_recv_packet_size;
+  int           m_send_packet_chid;
+  int           m_send_packet_size;
+  float         m_gate_ping_time;           // time of silence before triggering a ping
+  float         m_gate_info_time;           // time to wait for an info response, before sending an info request
+  float         m_gate_wait_time;     
+  float         m_gate_drop_time;           // time of silence before any incomplete message is discarded
+  float         m_gate_trip_time;           // time of silence before the machine is declared disconnected
+  bool          m_bt16;
+  bool          m_bt64;
+  bool          m_flush_auto;               // send pending data as soon as EOL is written to the data buffer
+  bool          m_flush_sync;               // send pending data upon sync() [[not implemented]]
 
   private:
-  timer     m_ping_ctr;
-  timer     m_info_ctr;                 // info timer
-  timer     m_drop_ctr;                 // drop timer
-  timer     m_trip_ctr;                 // trip timer
-  bool      m_ping_await;               // ping has been sent, don't send another until a pong has been received
+  timer         m_ping_ctr;
+  timer         m_info_ctr;                 // info timer
+  timer         m_drop_ctr;                 // drop timer
+  timer         m_trip_ctr;                 // trip timer
+  bool          m_ping_await;               // ping has been sent, don't send another until a pong has been received
 
-  int       m_reserve_min;              // how many bytes to reserve into the local buffers at a minimum
-  int       m_reserve_max;              // how many bytes to reserve into the local buffers at most
-  bool      m_stealth_bit;              // do not send status responses (acting as a proxy, maybe)
+  int           m_reserve_min;              // how many bytes to reserve into the local buffers at a minimum
+  int           m_reserve_max;              // how many bytes to reserve into the local buffers at most
+  bool          m_stealth_bit;              // do not send status responses (acting as a proxy, maybe)
 
   public:
   static constexpr unsigned int o_none = 0u;
   static constexpr unsigned int o_enable_user = 1u;
   static constexpr unsigned int o_enable_host = 2u;
   static constexpr unsigned int o_remote = 8u;
-  static constexpr unsigned int o_flush_auto = 16u;
+  static constexpr unsigned int o_bt16 = 16u;         // translate binary to base16 (useful if transport is UART)
+  static constexpr unsigned int o_bt64 = 64u;         // translate binary to base64 (useful if transport is UART)
+  static constexpr unsigned int o_flush_auto = 128u;
   static constexpr unsigned int o_stealth = 256u;
   static constexpr unsigned int o_default = o_enable_host | o_remote | o_flush_auto;
 
   public:
-  int       m_msg_recv;
-  int       m_msg_drop;
-  int       m_msg_tmit;
-  int       m_chr_recv;
-  int       m_chr_tmit;
-  int       m_mem_size;
-  int       m_mem_used;
-  float     m_run_time;                 // how long has the gateway been up
+  int           m_msg_recv;
+  int           m_msg_drop;
+  int           m_msg_tmit;
+  int           m_chr_recv;
+  int           m_chr_tmit;
+  int           m_mem_size;
+  int           m_mem_used;
+  float         m_run_time;                 // how long has the gateway been up
 
   private:
-  bool      m_host_role;                // server mode, accept and respond to requests
-  bool      m_user_role;                // client mode, send requests and wait for responses
-  bool      m_ping_enable;
-  int       m_stage_count;
-  bool      m_resume_bit;
-  bool      m_join_bit;                 // raw connection is up
-  bool      m_healthy_bit;              // emc connection is up and healthy
+  bool          m_host_role;                // server mode, accept and respond to requests
+  bool          m_user_role;                // client mode, send requests and wait for responses
+  bool          m_ping_enable;
+  int           m_stage_count;
+  bool          m_resume_bit;
+  bool          m_join_bit;                 // raw connection is up
+  bool          m_healthy_bit;              // emc connection is up and healthy
 
   protected:
           void  emc_emit(char) noexcept;
           void  emc_emit(int, const char*) noexcept;
-          int   emc_reserve_packet(int, int, std::uint8_t*&) noexcept;
+          bool  emc_prepare_packet(int, int) noexcept;
+          bool  emc_reserve_packet(std::uint8_t*&, int) noexcept;
+          bool  emc_fill_packet(std::uint8_t*, int) noexcept;
+          bool  emc_zero_packet() noexcept;
           bool  emc_emit_packet() noexcept;
           bool  emc_drop_packet() noexcept;
 
@@ -217,20 +224,22 @@ class gateway: public rawstage
           gateway(gateway&&) noexcept = delete;
   virtual ~gateway();
 
-          bool     attach(emcstage*) noexcept;
-          bool     detach(emcstage*) noexcept;
+          bool    attach(emcstage*) noexcept;
+          bool    detach(emcstage*) noexcept;
 
-          bool     send_line(const char*, std::size_t = 0u) noexcept;
-          int      reserve_packet(int, std::size_t, std::uint8_t*&) noexcept;
-          bool     emit_packet() noexcept;
-          bool     drop_packet() noexcept;
+          bool    send_line(const char*, std::size_t = 0u) noexcept;
+          bool    send_packet_raw(int, std::uint8_t*, std::size_t) noexcept;
+          bool    send_packet_base16(int, std::uint8_t*, std::size_t) noexcept;
+          bool    send_packet_base64(int, std::uint8_t*, std::size_t) noexcept;
 
-          bool     set_drop_time(float) noexcept;
-          bool     set_trip_time(float) noexcept;
-          bool     get_resume_state(bool = true) const noexcept;
-          bool     get_healthy_state(bool = true) const noexcept;
+          bool    set_drop_time(float) noexcept;
+          bool    set_trip_time(float) noexcept;
+          bool    has_binary_transport_flags() const noexcept;
+          bool    has_binary_transport_flags(unsigned int) const noexcept;
+          bool    get_resume_state(bool = true) const noexcept;
+          bool    get_healthy_state(bool = true) const noexcept;
           
-          void     flush() noexcept;
+          void    flush() noexcept;
           
           gateway& operator=(const gateway&) noexcept = delete;
           gateway& operator=(gateway&&) noexcept = delete;

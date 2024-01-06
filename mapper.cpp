@@ -20,8 +20,10 @@
     EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 **/
 #include "mapper.h"
-#include <emc/protocol.h>
-#include <emc/error.h>
+#include "protocol.h"
+#include "gateway.h"
+#include "transport.h"
+#include "error.h"
 
 static emc::stream_t* s_channel_map[128] = {
     nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
@@ -39,6 +41,9 @@ namespace emc {
 
       mapper::mapper() noexcept:
       controller(),
+      p_gateway(nullptr),
+      m_cache_data(nullptr),
+      m_cache_size(0),
       m_search_index(chid_min),
       m_stream_count(0),
       m_device_count(0)
@@ -47,6 +52,7 @@ namespace emc {
 
       mapper::~mapper()
 {
+      mpi_cache_dispose();
 }
 
 auto  mapper::mpi_find_channel() noexcept -> std::int8_t
@@ -93,6 +99,34 @@ bool  mapper::mpi_release_channel(int index, stream_t* stream) noexcept
           return true;
       }
       return false;
+}
+
+auto  mapper::mpi_cache_reserve(int size) noexcept -> std::uint8_t*
+{
+      if(size > 0) {
+          if(size > m_cache_size) {
+              if(size < std::numeric_limits<short int>::max()) {
+                  int   l_cache_size = get_round_value(size, global::cache_small_max);
+                  void* l_cache_data = realloc(m_cache_data, l_cache_size);
+                  if(l_cache_data != nullptr) {
+                      m_cache_data = reinterpret_cast<std::uint8_t*>(l_cache_data);
+                      m_cache_size = l_cache_size;
+                  } else
+                      return nullptr;
+              } else
+                  return nullptr;
+          }
+      }
+      return m_cache_data;
+}
+
+void  mapper::mpi_cache_dispose() noexcept
+{
+      if(m_cache_data != nullptr) {
+          free(m_cache_data);
+          m_cache_data = nullptr;
+          m_cache_size = 0;
+      }
 }
 
 auto  mapper::mpi_get_device_ptr(int index) noexcept -> emc::device_t*
@@ -183,6 +217,10 @@ int   mapper::mpi_open_stream(stream_t*, device_t*, const sys::argv&) noexcept
       return emc::err_fail;
 }
 
+void  mapper::mpi_recv(emc::stream_t*, std::uint8_t*, int) noexcept
+{
+}
+
 int   mapper::mpi_close_stream(stream_t*) noexcept
 {
       return emc::err_fail;
@@ -206,23 +244,23 @@ void  mapper::mpi_send_support_event(emc::device_t* device, char event_tag) noex
           );
           if(l_event_tag == emc::emc_enable_tag) {
               // mode flag specifying whether the device has a time base or not
-              l_device_flags[0] = '-';
+              l_device_flags[0] = edm_flag_none;
               // mode flag specifying whether the device can be read from or not
               if(device->ed_flags & emc::edf_allow_recv) {
-                  l_device_flags[1] = 'r';
+                  l_device_flags[1] = edm_flag_recv;
               } else
-                  l_device_flags[1] = '-';
+                  l_device_flags[1] = edm_flag_none;
               // mode flag specifying whether the device can be written to or not
               if(device->ed_flags & emc::edf_allow_recv) {
-                  l_device_flags[2] = 'w';
+                  l_device_flags[2] = edm_flag_send;
               } else
-                  l_device_flags[2] = '-';
+                  l_device_flags[2] = edm_flag_none;
               // mode flag for binary vs. ascii mode; useful over UART or other transport protocols which do not allow binary
               // data to be transferred directly
               if(device->ed_flags & emc::edf_mode_binary) {
-                  l_device_flags[3] = 'b';
+                  l_device_flags[3] = edm_flag_binary;
               } else
-                  l_device_flags[3] = '-';
+                  l_device_flags[3] = edm_flag_none;
               l_device_flags[4] = 0;
               // write out the basic device information
               emc_put(
@@ -258,23 +296,29 @@ void  mapper::mpi_send_channel_event(emc::stream_t* stream, char event_tag) noex
           );
           if(l_event_tag == emc::emc_enable_tag) {
               // mode flag specifying whether the device has a time base or not
-              l_stream_flags[0] = '-';
+              l_stream_flags[0] = edm_flag_none;
               // mode flag specifying whether the stream can be read from or not
               if(stream->es_flags & emc::edf_allow_recv) {
-                  l_stream_flags[1] = 'r';
+                  l_stream_flags[1] = edm_flag_recv;
               } else
-                  l_stream_flags[1] = '-';
+                  l_stream_flags[1] = edm_flag_none;
               // mode flag specifying whether the stream can be written to or not
-              if(stream->es_flags & emc::edf_allow_recv) {
-                  l_stream_flags[2] = 'w';
+              if(stream->es_flags & emc::edf_allow_send) {
+                  l_stream_flags[2] = edm_flag_send;
               } else
-                  l_stream_flags[2] = '-';
+                  l_stream_flags[2] = edm_flag_none;
               // mode flag for binary vs. ascii mode; useful over UART or other transport protocols which do not allow binary
               // data to be transferred directly
-              if(stream->es_flags & emc::edf_mode_binary) {
-                  l_stream_flags[3] = 'b';
+              if(stream->es_flags & emc::esf_encoding_base16) {
+                  l_stream_flags[3] = edm_flag_encode_base16;
               } else
-                  l_stream_flags[3] = '-';
+              if(stream->es_flags & emc::esf_encoding_base64) {
+                  l_stream_flags[3] = edm_flag_encode_base64;
+              } else
+              if(stream->es_flags & emc::esf_encoding_binary) {
+                  l_stream_flags[3] = edm_flag_binary;
+              } else
+                  l_stream_flags[3] = edm_flag_none;
               l_stream_flags[4] = 0;
               // write out the basic device information
               emc_put(
@@ -305,6 +349,11 @@ void  mapper::mpi_send_support_response() noexcept
           mpi_send_support_response(i_device, emc::emc_enable_tag);
           ++i_device;
       }
+}
+
+void  mapper::emc_std_attach(gateway* gateway) noexcept
+{
+      p_gateway = gateway;
 }
 
 int   mapper::emc_std_process_request(int argc, const sys::argv& argv) noexcept
@@ -364,12 +413,36 @@ int   mapper::emc_std_process_request(int argc, const sys::argv& argv) noexcept
                               if(p_stream != nullptr) {
                                   // assign the channel id to the stream
                                   if(mpi_acquire_channel(l_channel_index, p_stream)) {
+                                      // init the stream 
                                       p_stream->es_type = p_device->ed_type;
                                       p_stream->es_device = l_device_index;
                                       p_stream->es_channel = l_channel_index;
-                                      p_stream->es_flags = p_device->ed_flags;
+                                      p_stream->es_flags = esf_none;
+                                      // set flags overridable by `mpi_open_stream()`
+                                      if((p_device->ed_flags & edf_allow_recv) != edf_none) {
+                                          p_stream->es_flags |= emc::esf_mode_recv;
+                                      }
+                                      if((p_device->ed_flags & edf_allow_send) != edf_none) {
+                                          p_stream->es_flags |= emc::esf_mode_send;
+                                      }
+                                      if((p_device->ed_flags & edf_allow_seek) != edf_none) {
+                                          p_stream->es_flags |= emc::esf_mode_seek;
+                                      }
+                                      if((p_device->ed_flags & edf_allow_sync) != edf_none) {
+                                          p_stream->es_flags |= emc::esf_mode_sync;
+                                      }
                                       l_rc = mpi_open_stream(p_stream, p_device, argv);
                                       if(l_rc == emc::err_okay) {
+                                          // set the encoding flags, if applicable
+                                          if((p_device->ed_flags & edf_mode_binary) != edf_none) {
+                                              if(p_gateway->has_binary_transport_flags(emc::esf_encoding_base64)) {
+                                                  p_stream->es_flags |= emc::esf_encoding_base64;
+                                              } else
+                                              if(p_gateway->has_binary_transport_flags(emc::esf_encoding_base16)) {
+                                                  p_stream->es_flags |= emc::esf_encoding_base16;
+                                              } else
+                                                  p_stream->es_flags |= emc::esf_encoding_binary;
+                                          }
                                           // send success response
                                           mpi_send_channel_event(p_stream, emc::emc_enable_tag);
                                           // update the mapper properties
@@ -474,6 +547,56 @@ int   mapper::emc_std_process_request(int argc, const sys::argv& argv) noexcept
 int   mapper::emc_std_process_response(int argc, const sys::argv& argv) noexcept
 {
       return emc::controller::emc_std_process_response(argc, argv);
+}
+
+int   mapper::emc_std_process_packet(int channel, int size, std::uint8_t* data) noexcept
+{
+      emc::stream_t* p_stream    = s_channel_map[channel];
+      int            l_packet_rc = emc::err_okay;
+      if(p_stream != nullptr) {
+          if(p_stream->es_type != edt_none) {
+              // check if the stream belongs to our list
+              int  l_stream_index = p_stream - std::addressof(m_stream_list[0]);
+              if((l_stream_index >= 0) &&
+                  (l_stream_index < m_stream_count)) {
+                  std::uint8_t* p_packet_data = data;
+                  int           l_packet_size = size;
+                  // check the stream's encoding flags to see if there is any data conversion necessary on the buffer
+                  if((p_stream->es_flags & emc::esf_encoding_base64) != emc::esf_none) {
+                      l_packet_size = get_div_ub(size * 3, 4);
+                      p_packet_data = mpi_cache_reserve(l_packet_size);
+                      if(p_packet_data != nullptr) {
+                          emc::transport::base64_decode(p_packet_data, data, l_packet_size);
+                      } else
+                          l_packet_rc = emc::err_fail;
+                  } else
+                  if((p_stream->es_flags & emc::esf_encoding_base16) != emc::esf_none) {
+                      l_packet_size = get_div_ub(size, 2);
+                      p_packet_data = mpi_cache_reserve(l_packet_size);
+                      if(p_packet_data != nullptr) {
+                          emc::transport::base16_decode(p_packet_data, data, l_packet_size);
+                      } else
+                          l_packet_rc = emc::err_fail;
+                  }
+                  if(l_packet_rc == emc::err_okay) {
+                      mpi_recv(p_stream, p_packet_data, l_packet_size);
+                  }
+              }
+          }
+      }
+      if(emc::controller::emc_std_process_packet(channel, size, data) == emc::err_okay) {
+          return l_packet_rc;
+      }
+      return emc::err_fail;
+}
+
+void  mapper::emc_std_detach(gateway* gateway) noexcept
+{
+      if(p_gateway) {
+          if(p_gateway == gateway) {
+              p_gateway = nullptr;
+          }
+      }
 }
 
 void  mapper::emc_std_sync(float) noexcept

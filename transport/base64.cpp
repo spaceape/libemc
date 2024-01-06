@@ -21,7 +21,14 @@
 **/
 #include <emc.h>
 
-static const char s_base64_map[256] = {
+static const char s_base64_encode_map[64] = {
+    'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H',  'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P',
+    'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X',  'Y', 'Z', 'a', 'b', 'c', 'd', 'e', 'f',
+    'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n',  'o', 'p', 'q', 'r', 's', 't', 'u', 'v',
+    'w', 'x', 'y', 'z', '0', '1', '2', '3',  '4', '5', '6', '7', '8', '9', '+', '/'
+};
+
+static const char s_base64_decode_map[256] = {
     0,   0,   0,   0,   0,   0,   0,   0,    0,   0,   0,   0,   0,   0,   0,   0,
     0,   0,   0,   0,   0,   0,   0,   0,    0,   0,   0,   0,   0,   0,   0,   0,
     0,   0,   0,   0,   0,   0,   0,   0,    0,   0,   0,  62,   0,   0,   0,  63,
@@ -48,35 +55,71 @@ namespace transport {
 
 void  base64_encode(std::uint8_t* dst, std::uint8_t* src, int size) noexcept
 {
+      unsigned int  i_cvt;
+      std::uint8_t* p_dst = dst;
+      std::uint8_t* p_src = src;
+      int           l_rem_size = size % 3;
+      int           l_cpt_size = size - l_rem_size;
+      std::uint8_t* p_end = src + l_cpt_size;
+      while(p_src < p_end) {
+          i_cvt = *(p_src++) << 16;
+          i_cvt |= *(p_src++) << 8;
+          i_cvt |= *(p_src++);
+          *(p_dst++) = s_base64_encode_map[(i_cvt & 0b11111100'00000000'00000000) >> 18];
+          *(p_dst++) = s_base64_encode_map[(i_cvt & 0b00000011'11110000'00000000) >> 12];
+          *(p_dst++) = s_base64_encode_map[(i_cvt & 0b00000000'00001111'11000000) >> 6];
+          *(p_dst++) = s_base64_encode_map[(i_cvt & 0b00000000'00000000'00111111)];
+      }
+      if(l_rem_size > 0) {
+          i_cvt = *(p_src++) << 16;
+          *(p_dst++) = s_base64_encode_map[(i_cvt & 0b11111100'00000000'00000000) >> 18];
+          if(l_rem_size > 1) {
+              i_cvt |= *(p_src++) << 8;
+              *(p_dst++) = s_base64_encode_map[(i_cvt & 0b00000011'11110000'00000000) >> 12];
+              *(p_dst++) = s_base64_encode_map[(i_cvt & 0b00000000'00001111'00000000) >> 6];
+          }
+          else {
+              *(p_dst++) = s_base64_encode_map[(i_cvt & 0b00000011'00000000'00000000) >> 12];
+              *(p_dst++) = '=';
+          }
+          *(p_dst++) = '=';
+      }
 }
 
 void  base64_decode(std::uint8_t* dst, std::uint8_t* src, int size) noexcept
 {
-      std::uint8_t  l_digit;
+      unsigned int  i_cvt;
       std::uint8_t* p_dst = dst;
       std::uint8_t* p_src = src;
-      std::uint8_t* p_end = src + size;
+      int           l_rem_size = size % 4;
+      int           l_cpt_size = size - l_rem_size;
+      std::uint8_t* p_end = src + l_cpt_size;
       while(p_src < p_end) {
-          l_digit = s_base64_map[*(p_src++)];
-          p_dst[0] = l_digit;
-          if(p_src < p_end) {
-              p_dst[0] <<= 2;
-              l_digit = s_base64_map[*(p_src++)];
-              p_dst[0] |= (l_digit & 0b110000) >> 4;
-              p_dst[1] = l_digit & 0b001111;
-              if(p_src < p_end) {
-                  p_dst[1] <<= 4;
-                  l_digit = s_base64_map[*(p_src++)];
-                  p_dst[1] |= (l_digit & 0x111100) >> 2;
-                  p_dst[2] = l_digit & 0x000011;
-                  if(p_src < p_end) {
-                      p_dst[2] <<= 6;
-                      l_digit = s_base64_map[*(p_src++)];
-                      p_dst[2] |= l_digit;
-                  }
+          i_cvt = s_base64_decode_map[*(p_src++)] << 18;
+          i_cvt |= s_base64_decode_map[*(p_src++)] << 12;
+          i_cvt |= s_base64_decode_map[*(p_src++)] << 6;
+          i_cvt |= s_base64_decode_map[*(p_src++)];
+          *(p_dst++) = (i_cvt & 0xff0000) >> 16;
+          *(p_dst++) = (i_cvt & 0x00ff00) >> 8;
+          *(p_dst++) = (i_cvt & 0x0000ff);
+      }
+      if(l_rem_size > 0) {
+          i_cvt = s_base64_decode_map[*(p_src++)] << 18;
+          if(l_rem_size > 1) {
+              i_cvt |= s_base64_decode_map[*(p_src++)] << 12;
+              *(p_dst++) = (i_cvt & 0b11111111'00000000'00000000) >> 16;
+              if(l_rem_size > 2) {
+                  i_cvt |= s_base64_decode_map[*(p_src++)] << 6;
+                  *(p_dst++) = (i_cvt & 0b00000000'11111111'00000000) >> 8;
+                  *(p_dst++) = (i_cvt & 0b00000000'00000000'11000000);
+              }
+              else {
+                  *(p_dst++) = (i_cvt & 0b00000000'11110000'00000000) >> 8;
               }
           }
-          p_dst += 3;
+          else {
+              *(p_dst++) = (i_cvt & 0b11111100'00000000'00000000) >> 16;
+          }
       }
 }
 

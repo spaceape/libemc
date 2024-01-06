@@ -26,10 +26,10 @@
 namespace emc {
 namespace transport {
 
-void  base16_encode(std::uint8_t* dst, std::uint8_t* src, int size) noexcept;
-void  base16_decode(std::uint8_t* dst, std::uint8_t* src, int size) noexcept;
-void  base64_encode(std::uint8_t* dst, std::uint8_t* src, int size) noexcept;
-void  base64_decode(std::uint8_t* dst, std::uint8_t* src, int size) noexcept;
+void  base16_encode(std::uint8_t* __restrict dst, std::uint8_t* __restrict src, int size) noexcept;
+void  base16_decode(std::uint8_t* __restrict dst, std::uint8_t* __restrict src, int size) noexcept;
+void  base64_encode(std::uint8_t* __restrict dst, std::uint8_t* __restrict src, int size) noexcept;
+void  base64_decode(std::uint8_t* __restrict dst, std::uint8_t* __restrict src, int size) noexcept;
 
 /*namespace transport*/ }
 /*namespace emc*/ }

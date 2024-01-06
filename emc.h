@@ -39,7 +39,7 @@ class monitor;
 /* packet_head_size
 */
 constexpr int packet_head_size = 4;
-constexpr int packet_size_multiplier = 16;
+constexpr int packet_size_multiplier = 8;
 constexpr int packet_size_max = packet_size_multiplier * (1 << (packet_head_size - 1) << 2);
 
 /* chid_*
