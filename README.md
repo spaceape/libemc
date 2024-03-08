@@ -161,7 +161,7 @@ The events are accessible via the `emcstage` interface:
 
 ## 2.5. Controllers and Layers
 
-Controllers are a subset of EMC stages which provide a services to the _controlling device(s)_
+Controllers are a subset of EMC stages which provide a services to the _agent(s)_
 through the command line interface. Each controller extends the base protocol with an unique set
 of commands through which it can be interacted with, called a _Layer_.
 
@@ -183,11 +183,11 @@ for a multitude of device types and functions.
 
 ## 2.7. Services
 
-Services are bits of functionality that a _controlling device_ can make available to the EMC
-server in order to fulfill certain tasks; Services are advertised by the controlling device upon
+Services are bits of functionality that a _agent_ can make available to the EMC
+device in order to fulfill certain tasks; Services are advertised by the controlling device upon
 connect via the `s+` command.
 
-       client      |      device
+        agent      |      device
 
                   EMC    
       [service] <-----> [interface]
