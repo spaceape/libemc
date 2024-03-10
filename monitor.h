@@ -31,7 +31,7 @@ namespace emc {
 class monitor: public emcstage
 {
   public:
-          monitor() noexcept;
+          monitor();
           monitor(const monitor&) noexcept = delete;
           monitor(monitor&&) noexcept = delete;
   virtual ~monitor();

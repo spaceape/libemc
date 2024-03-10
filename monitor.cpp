@@ -23,7 +23,7 @@
 
 namespace emc {
 
-      monitor::monitor() noexcept:
+      monitor::monitor():
       emcstage()
 {
 }
