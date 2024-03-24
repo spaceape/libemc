@@ -1001,25 +1001,27 @@ int   gateway::emc_raw_feed(std::uint8_t* data, int size) noexcept
                       if(l_commit) {
                           char* p_recv        = reinterpret_cast<char*>(m_recv_data);
                           int   l_recv_length = m_recv_iter;
-                          if(m_host_role == true) {
-                              // capture requests, if gateway is running as server
-                              if(p_recv[0] == emc_tag_request) {
-                                  emc_raw_feed_request(p_recv, l_recv_length);
+                          if(l_recv_length > 1) {
+                              if(m_host_role == true) {
+                                  // capture requests, if gateway is running as server
+                                  if(p_recv[0] == emc_tag_request) {
+                                      emc_raw_feed_request(p_recv, l_recv_length);
+                                  } else
+                                  if((p_recv[0] == emc_tag_help) && (p_recv[1] == NUL)) {
+                                      emc_raw_feed_help_request(p_recv, l_recv_length);
+                                  } else
+                                  if((p_recv[0] == emc_tag_sync) && (p_recv[1] == NUL)) {
+                                      emc_raw_feed_sync_request(p_recv, l_recv_length);
+                                  } else
+                                      emc_raw_feed_comment(p_recv, l_recv_length);
                               } else
-                              if((p_recv[0] == emc_tag_help) && (p_recv[1] == NUL)) {
-                                  emc_raw_feed_help_request(p_recv, l_recv_length);
-                              } else
-                              if((p_recv[0] == emc_tag_sync) && (p_recv[1] == NUL)) {
-                                  emc_raw_feed_sync_request(p_recv, l_recv_length);
-                              } else
-                                  emc_raw_feed_comment(p_recv, l_recv_length);
-                          } else
-                          if(m_user_role == true) {
-                              // capture responses, if waiting for any
-                              if(p_recv[0] == emc_tag_response) {
-                                  emc_raw_feed_response(p_recv, l_recv_length);
-                              } else
-                                  emc_raw_feed_comment(p_recv, l_recv_length);
+                              if(m_user_role == true) {
+                                  // capture responses, if waiting for any
+                                  if(p_recv[0] == emc_tag_response) {
+                                      emc_raw_feed_response(p_recv, l_recv_length);
+                                  } else
+                                      emc_raw_feed_comment(p_recv, l_recv_length);
+                              }
                           }
                           m_recv_state = s_state_accept;
                           m_msg_recv++;
