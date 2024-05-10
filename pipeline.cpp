@@ -244,8 +244,21 @@ void  emcstage::emc_std_sync(float) noexcept
 {
 }
 
-void  emcstage::describe() noexcept
+bool  emcstage::has_type(const char* type) const noexcept
 {
+      auto p_stage_type = get_type();
+      if(type != nullptr) {
+          if(type == p_stage_type) {
+              return true;
+          } else
+              return std::strcmp(type, p_stage_type) == 0;
+      } else
+          return p_stage_type == nullptr;
+}
+
+auto  emcstage::get_type() const noexcept -> const char*
+{
+      return nullptr;
 }
 
 auto  emcstage::get_layer_name(int index) const noexcept -> const char*
@@ -256,6 +269,10 @@ auto  emcstage::get_layer_name(int index) const noexcept -> const char*
 int   emcstage::get_layer_state(int index) const noexcept
 {
       return layer_state_disabled;
+}
+
+void  emcstage::describe() noexcept
+{
 }
 
 /*namespace emc*/ }

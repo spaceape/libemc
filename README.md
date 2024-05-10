@@ -165,6 +165,10 @@ Controllers are a subset of EMC stages which provide a services to the _agent(s)
 through the command line interface. Each controller extends the base protocol with an unique set
 of commands through which it can be interacted with, called a _Layer_.
 
+- `get_layer_name()`: name for the controller/layer; if `nullptr`, the service will be hidden from the
+  support list
+- `get_enabled()`: indicates whether or not the service is active
+
 ## 2.6. Devices and Streams
 
 Devices implement high bandwith software interfaces to _streams_ on the machine. As opposed to
@@ -178,24 +182,22 @@ via the "**dev**" layer, using commands such as:
   - `close`
   - `sync`
 
-EMC manages devices and streams via special called a _mapper_, which can be further specialized
+EMC manages devices and streams via special entity called a _mapper_, which can be further specialized
 for a multitude of device types and functions.
 
 ## 2.7. Services
 
-Services are bits of functionality that a _agent_ can make available to the EMC
-device in order to fulfill certain tasks; Services are advertised by the controlling device upon
-connect via the `s+` command.
+Services are bits of functionality that an _agent_ can make available to an EMC device in order to fulfill certain tasks; Services are advertised by the controlling device (agent) upon connect via the `s+` command.
 
         agent      |      device
 
                   EMC    
       [service] <-----> [interface]
 
+<!-- - `get_layer_name`: name for the controller/layer; if `nullptr`, the service will be hidden from the
+  support list
+- `get_enabled`: indicates whether or not the service is active -->
 
-  - `get_layer_name`: name for the controller/layer; if `nullptr`, controller will be hidden from the
-    support list
-  - `get_enabled`: indicates whether or not the service is active
 
 # 3. The EMC Protocol
 

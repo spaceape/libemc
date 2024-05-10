@@ -110,9 +110,11 @@ class emcstage
           emcstage(const emcstage&) noexcept = delete;
           emcstage(emcstage&&) noexcept = delete;
   virtual ~emcstage();
-  virtual void         describe() noexcept;
+          bool         has_type(const char*) const noexcept;
+  virtual const char*  get_type() const noexcept;
   virtual const char*  get_layer_name(int) const noexcept;
   virtual int          get_layer_state(int) const noexcept;
+  virtual void         describe() noexcept;
           emcstage&    operator=(const emcstage&) noexcept = delete;
           emcstage&    operator=(emcstage&&) noexcept = delete;
 };
