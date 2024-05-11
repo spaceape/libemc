@@ -53,7 +53,7 @@ static const char s_base64_decode_map[256] = {
 namespace emc {
 namespace transport {
 
-void  base64_encode(std::uint8_t* dst, std::uint8_t* src, int size) noexcept
+std::size_t base64_encode(std::uint8_t* dst, std::uint8_t* src, std::size_t size) noexcept
 {
       unsigned int  i_cvt;
       std::uint8_t* p_dst = dst;
@@ -84,9 +84,10 @@ void  base64_encode(std::uint8_t* dst, std::uint8_t* src, int size) noexcept
           }
           *(p_dst++) = '=';
       }
+      return p_dst - dst;
 }
 
-void  base64_decode(std::uint8_t* dst, std::uint8_t* src, int size) noexcept
+std::size_t base64_decode(std::uint8_t* dst, std::uint8_t* src, std::size_t size) noexcept
 {
       unsigned int  i_cvt;
       std::uint8_t* p_dst = dst;
@@ -121,6 +122,7 @@ void  base64_decode(std::uint8_t* dst, std::uint8_t* src, int size) noexcept
               *(p_dst++) = (i_cvt & 0b11111100'00000000'00000000) >> 16;
           }
       }
+      return p_dst - dst;
 }
 
 /*namespace transport*/ }

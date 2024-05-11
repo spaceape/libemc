@@ -40,7 +40,7 @@ static const char s_base16_decode_map[256] = {
 namespace emc {
 namespace transport {
 
-void  base16_encode(std::uint8_t* dst, std::uint8_t* src, int size) noexcept
+std::size_t base16_encode(std::uint8_t* dst, std::uint8_t* src, std::size_t size) noexcept
 {
       std::uint8_t* p_dst = dst;
       std::uint8_t* p_src = src;
@@ -53,9 +53,10 @@ void  base16_encode(std::uint8_t* dst, std::uint8_t* src, int size) noexcept
           *(p_dst++) = s_base16_encode_map[hex];
           p_src++;
       }
+      return p_dst - dst;
 }
 
-void  base16_decode(std::uint8_t* dst, std::uint8_t* src, int size) noexcept
+std::size_t base16_decode(std::uint8_t* dst, std::uint8_t* src, std::size_t size) noexcept
 {
       std::uint8_t* p_dst = dst;
       std::uint8_t* p_src = src;
@@ -68,7 +69,9 @@ void  base16_decode(std::uint8_t* dst, std::uint8_t* src, int size) noexcept
       }
       if(size & 1) {
           *p_dst = s_base16_decode_map[*(p_src++)];
+          p_dst++;
       }
+      return p_dst - dst;
 }
 
 /*namespace transport*/ }
