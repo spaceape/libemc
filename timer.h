@@ -30,7 +30,7 @@ namespace emc {
 class timer
 {
   float   m_value;
-  bool    m_enable;
+  bool    m_enable_bit;
 
   public:
           timer(bool = true) noexcept;

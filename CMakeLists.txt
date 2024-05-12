@@ -32,7 +32,7 @@ set(inc
 )
 
 set(srcs
-  timer.cpp
+  timer.cpp latch.cpp
   pipeline.cpp
   transport/base16.cpp transport/base64.cpp
   gateway.cpp monitor.cpp controller.cpp mapper.cpp

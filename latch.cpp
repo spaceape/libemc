@@ -19,56 +19,80 @@
     CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
     EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 **/
-#include "timer.h"
+#include "latch.h"
 
 namespace emc {
 
-      timer::timer(bool enable) noexcept:
-      timer(0.0f, enable)
+      latch::latch(bool enable) noexcept:
+      latch(0.0f, 0.0f, enable)
 {
 }
 
-      timer::timer(float value, bool enable) noexcept:
+      latch::latch(float value, float threshold, bool enable) noexcept:
       m_value(value),
+      m_threshold(threshold),
+      m_latch_bit(false),
       m_enable_bit(enable)
 {
 }
 
-      timer::timer(const timer& copy) noexcept:
+      latch::latch(const latch& copy) noexcept:
       m_value(copy.m_value),
+      m_threshold(copy.m_threshold),
+      m_latch_bit(copy.m_latch_bit),
       m_enable_bit(copy.m_enable_bit)
 {
 }
 
-      timer::timer(timer&& copy) noexcept:
+      latch::latch(latch&& copy) noexcept:
       m_value(copy.m_value),
+      m_threshold(copy.m_threshold),
+      m_latch_bit(copy.m_latch_bit),
       m_enable_bit(copy.m_enable_bit)
 {
 }
 
-      timer::~timer()
+      latch::~latch()
 {
 }
 
-float timer::get() const noexcept
+float latch::get() const noexcept
 {
       return m_value;
 }
 
-float timer::compare(float interval) const noexcept
+float latch::compare() const noexcept
 {
-      return interval - m_value;
+      return m_threshold - m_value;
 }
 
-bool  timer::test(float interval) const noexcept
+bool  latch::test() const noexcept
 {
       if(m_enable_bit) {
-          return compare(interval) <= 0;
+          return m_value >= m_threshold;
       } else
           return false;
 }
 
-void  timer::resume(bool value) noexcept
+bool  latch::get_latch_bit() const noexcept
+{
+      return m_latch_bit;
+}
+
+bool  latch::set_latch_bit() noexcept
+{
+      if(m_latch_bit == false) {
+          if(m_enable_bit == true) {
+              if(m_value >= m_threshold) {
+                  m_latch_bit = true;
+                  return true;
+              }
+          }
+      }
+      return false;
+}
+
+void  latch::resume(bool value) noexcept
 {
       if(m_enable_bit != value) {
           m_enable_bit = value;
@@ -78,39 +102,44 @@ void  timer::resume(bool value) noexcept
       }
 }
 
-void  timer::suspend() noexcept
+void  latch::suspend() noexcept
 {
       resume(false);
 }
 
-void  timer::update(float dt) noexcept
+void  latch::update(float dt) noexcept
 {
       if(m_enable_bit) {
           m_value += dt;
       }
 }
 
-void  timer::reset() noexcept
+void  latch::reset() noexcept
 {
       m_value = 0.0f;
+      m_latch_bit = false;
 }
 
-      timer::operator bool() const noexcept
+      latch::operator bool() const noexcept
 {
       return m_enable_bit;
 }
 
-timer& timer::operator=(const timer& rhs) noexcept
+latch& latch::operator=(const latch& rhs) noexcept
 {
       m_value = rhs.m_value;
+      m_threshold = rhs.m_threshold;
       m_enable_bit = rhs.m_enable_bit;
+      m_latch_bit = rhs.m_latch_bit;
       return *this;
 }
 
-timer& timer::operator=(timer&& rhs) noexcept
+latch& latch::operator=(latch&& rhs) noexcept
 {
       m_value = rhs.m_value;
+      m_threshold = rhs.m_threshold;
       m_enable_bit = rhs.m_enable_bit;
+      m_latch_bit = rhs.m_latch_bit;
       return *this;
 }
 

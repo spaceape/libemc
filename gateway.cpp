@@ -742,83 +742,87 @@ void  gateway::emc_raw_feed_response(char* message, int length) noexcept
               l_rc = emc_process_response(l_argc, l_argv);
               // ...or otherwise handle standard responses here
               if(l_rc == err_no_response) {
-                  int  l_tag = m_args[0][0];
-                  switch(l_tag) {
-                      case emc_response_info: {
-                          if(m_args[1].has_text(emc_protocol_name)) {
-                              if(m_args[2].has_text(emc_protocol_version, 0, 3)) {
-                                  const char* l_name;
-                                  const char* l_info;
-                                  int         l_mtu  = emc_get_send_mtu();
-                                  if(m_args[3].has_text()) {
-                                      if(m_args[3].get_size() <= emc_name_size) {
-                                          l_name = m_args[3].get_text();
+                  if(m_args[0].has_size(1)) {
+                      switch(m_args[0][0]) {
+                          case emc_response_info: {
+                              if(m_args[1].has_text(emc_protocol_name)) {
+                                  if(m_args[2].has_text(emc_protocol_version, 0, 3)) {
+                                      const char* l_name;
+                                      const char* l_info;
+                                      int         l_mtu  = emc_get_send_mtu();
+                                      if(m_args[3].has_text()) {
+                                          if(m_args[3].get_size() <= emc_name_size) {
+                                              l_name = m_args[3].get_text();
+                                          } else
+                                              break;
                                       } else
                                           break;
-                                  } else
-                                      break;
-                                  if(m_args[4].has_text()) {
-                                      if(m_args[4].get_size() <= emc_info_size) {
-                                          l_info = m_args[4].get_text();
+                                      if(m_args[4].has_text()) {
+                                          if(m_args[4].get_size() <= emc_info_size) {
+                                              l_info = m_args[4].get_text();
+                                          } else
+                                              break;
                                       } else
                                           break;
-                                  } else
-                                      break;
-                                  if(m_args[6].has_text()) {
-                                      l_mtu = m_args[6].get_hex_int();
-                                      std::strncpy(m_gate_name, l_name, emc_name_size);
-                                      std::strncpy(m_gate_info, l_info, emc_info_size);
-                                      if((l_mtu >= s_mtu_min) &&
-                                          (l_mtu <= s_mtu_max)) {
-                                          emc_set_send_mtu(l_mtu);
-                                      }
-                                      m_info_ctr.suspend();
-                                      m_trip_ctr.reset();
-                                      if(m_healthy_bit == false) {
-                                          emc_gate_dispatch_connect(m_gate_name, m_gate_info, l_mtu);
-                                          m_healthy_bit = true;
-                                      }
-                                      l_rc = err_okay;
-                                  } else
-                                      break;
+                                      if(m_args[6].has_text()) {
+                                          l_mtu = m_args[6].get_hex_int();
+                                          std::strncpy(m_gate_name, l_name, emc_name_size);
+                                          std::strncpy(m_gate_info, l_info, emc_info_size);
+                                          if((l_mtu >= s_mtu_min) &&
+                                              (l_mtu <= s_mtu_max)) {
+                                              emc_set_send_mtu(l_mtu);
+                                          }
+                                          m_info_ctr.suspend();
+                                          m_trip_ctr.reset();
+                                          if(m_healthy_bit == false) {
+                                              emc_gate_dispatch_connect(m_gate_name, m_gate_info, l_mtu);
+                                              m_healthy_bit = true;
+                                          }
+                                          l_rc = err_okay;
+                                      } else
+                                          break;
+                                  }
                               }
                           }
+                              break;
+                          case emc_response_service:
+                              m_trip_ctr.reset();
+                              l_rc = err_okay;
+                              break;
+                          case emc_response_pong:
+                              m_trip_ctr.reset();
+                              m_ping_await = false;
+                              l_rc = err_okay;
+                              break;
+                          case '0':
+                          case '1':
+                          case '2':
+                          case '3':
+                          case '4':
+                          case '5':
+                          case '6':
+                          case '7':
+                          case '8':
+                          case '9':
+                          case 'A':
+                          case 'B':
+                          case 'C':
+                          case 'D':
+                          case 'E':
+                          case 'F':
+                              m_trip_ctr.reset();
+                              l_rc = err_okay;
+                              break;
+                          case emc_response_bye:
+                              m_trip_ctr.reset();
+                              l_rc = emc_raw_event(ev_close_request, nullptr);
+                              break;
+                          default:
+                              break;
                       }
-                          break;
-                      case emc_response_service:
-                          m_trip_ctr.reset();
-                          l_rc = err_okay;
-                          break;
-                      case emc_response_pong:
-                          m_trip_ctr.reset();
-                          m_ping_await = false;
-                          l_rc = err_okay;
-                          break;
-                      case '0':
-                      case '1':
-                      case '2':
-                      case '3':
-                      case '4':
-                      case '5':
-                      case '6':
-                      case '7':
-                      case '8':
-                      case '9':
-                      case 'A':
-                      case 'B':
-                      case 'C':
-                      case 'D':
-                      case 'E':
-                      case 'F':
-                          m_trip_ctr.reset();
-                          l_rc = err_okay;
-                          break;
-                      case emc_response_bye:
-                          m_trip_ctr.reset();
-                          l_rc = emc_raw_event(ev_close_request, nullptr);
-                          break;
-                      default:
-                          break;
+                  }
+                  if(l_rc == err_no_response) {
+                      l_rc = emc_gate_forward_response(l_argc, l_argv);
                   }
               }
           }
