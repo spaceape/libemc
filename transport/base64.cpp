@@ -53,14 +53,14 @@ static const char s_base64_decode_map[256] = {
 namespace emc {
 namespace transport {
 
-std::size_t base64_encode(std::uint8_t* dst, std::uint8_t* src, std::size_t size) noexcept
+std::size_t base64_encode(std::uint8_t* dst, const std::uint8_t* src, std::size_t size) noexcept
 {
       unsigned int  i_cvt;
       std::uint8_t* p_dst = dst;
-      std::uint8_t* p_src = src;
+      auto          p_src = src;
       int           l_rem_size = size % 3;
       int           l_cpt_size = size - l_rem_size;
-      std::uint8_t* p_end = src + l_cpt_size;
+      auto          p_end = src + l_cpt_size;
       while(p_src < p_end) {
           i_cvt = *(p_src++) << 16;
           i_cvt |= *(p_src++) << 8;
@@ -87,14 +87,19 @@ std::size_t base64_encode(std::uint8_t* dst, std::uint8_t* src, std::size_t size
       return p_dst - dst;
 }
 
-std::size_t base64_decode(std::uint8_t* dst, std::uint8_t* src, std::size_t size) noexcept
+std::size_t base64_encode(std::uint8_t* dst, const char* src, std::size_t size) noexcept
+{
+      return base64_encode(dst, reinterpret_cast<const std::uint8_t*>(src), size);
+}
+
+std::size_t base64_decode(std::uint8_t* dst, const std::uint8_t* src, std::size_t size) noexcept
 {
       unsigned int  i_cvt;
       std::uint8_t* p_dst = dst;
-      std::uint8_t* p_src = src;
+      auto          p_src = src;
       int           l_rem_size = size % 4;
       int           l_cpt_size = size - l_rem_size;
-      std::uint8_t* p_end = src + l_cpt_size;
+      auto          p_end = src + l_cpt_size;
       while(p_src < p_end) {
           i_cvt = s_base64_decode_map[*(p_src++)] << 18;
           i_cvt |= s_base64_decode_map[*(p_src++)] << 12;
@@ -123,6 +128,11 @@ std::size_t base64_decode(std::uint8_t* dst, std::uint8_t* src, std::size_t size
           }
       }
       return p_dst - dst;
+}
+
+std::size_t base64_decode(std::uint8_t* dst, const char* src, std::size_t size) noexcept
+{
+      return base64_decode(dst, reinterpret_cast<const std::uint8_t*>(src), size);
 }
 
 /*namespace transport*/ }

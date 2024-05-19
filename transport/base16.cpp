@@ -40,11 +40,11 @@ static const char s_base16_decode_map[256] = {
 namespace emc {
 namespace transport {
 
-std::size_t base16_encode(std::uint8_t* dst, std::uint8_t* src, std::size_t size) noexcept
+std::size_t base16_encode(std::uint8_t* dst, const std::uint8_t* src, std::size_t size) noexcept
 {
-      std::uint8_t* p_dst = dst;
-      std::uint8_t* p_src = src;
-      std::uint8_t* p_end = src + size;
+      auto p_dst = dst;
+      auto p_src = src;
+      auto p_end = src + size;
       int  hex;
       while(p_src < p_end) {
           hex = (*p_src & 0xf0) >> 4;
@@ -56,11 +56,16 @@ std::size_t base16_encode(std::uint8_t* dst, std::uint8_t* src, std::size_t size
       return p_dst - dst;
 }
 
-std::size_t base16_decode(std::uint8_t* dst, std::uint8_t* src, std::size_t size) noexcept
+std::size_t base16_encode(std::uint8_t* dst, const char* src, std::size_t size) noexcept
 {
-      std::uint8_t* p_dst = dst;
-      std::uint8_t* p_src = src;
-      std::uint8_t* p_end = src + (size & (~1));
+      return base16_encode(dst, reinterpret_cast<const std::uint8_t*>(src), size);
+}
+
+std::size_t base16_decode(std::uint8_t* dst, const std::uint8_t* src, std::size_t size) noexcept
+{
+      auto p_dst = dst;
+      auto p_src = src;
+      auto p_end = src + (size & (~1));
       while(p_src < p_end) {
           *p_dst = s_base16_decode_map[*(p_src++)];
           *p_dst <<= 4;
@@ -72,6 +77,11 @@ std::size_t base16_decode(std::uint8_t* dst, std::uint8_t* src, std::size_t size
           p_dst++;
       }
       return p_dst - dst;
+}
+
+std::size_t base16_decode(std::uint8_t* dst, const char* src, std::size_t size) noexcept
+{
+      return base16_decode(dst, reinterpret_cast<const std::uint8_t*>(src), size);
 }
 
 /*namespace transport*/ }

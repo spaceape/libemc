@@ -26,10 +26,14 @@
 namespace emc {
 namespace transport {
 
-std::size_t  base16_encode(std::uint8_t* __restrict dst, std::uint8_t* __restrict src, std::size_t size) noexcept;
-std::size_t  base16_decode(std::uint8_t* __restrict dst, std::uint8_t* __restrict src, std::size_t size) noexcept;
-std::size_t  base64_encode(std::uint8_t* __restrict dst, std::uint8_t* __restrict src, std::size_t size) noexcept;
-std::size_t  base64_decode(std::uint8_t* __restrict dst, std::uint8_t* __restrict src, std::size_t size) noexcept;
+std::size_t  base16_encode(std::uint8_t* __restrict dst, const std::uint8_t* __restrict src, std::size_t size) noexcept;
+std::size_t  base16_encode(std::uint8_t* __restrict dst, const char* __restrict src, std::size_t size) noexcept;
+std::size_t  base16_decode(std::uint8_t* __restrict dst, const std::uint8_t* __restrict src, std::size_t size) noexcept;
+std::size_t  base16_decode(std::uint8_t* __restrict dst, const char* __restrict src, std::size_t size) noexcept;
+std::size_t  base64_encode(std::uint8_t* __restrict dst, const std::uint8_t* __restrict src, std::size_t size) noexcept;
+std::size_t  base64_encode(std::uint8_t* __restrict dst, const char* __restrict src, std::size_t size) noexcept;
+std::size_t  base64_decode(std::uint8_t* __restrict dst, const std::uint8_t* __restrict src, std::size_t size) noexcept;
+std::size_t  base64_decode(std::uint8_t* __restrict dst, const char* __restrict src, std::size_t size) noexcept;
 
 /*namespace transport*/ }
 /*namespace emc*/ }
