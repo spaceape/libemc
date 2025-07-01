@@ -1,7 +1,5 @@
-#ifndef emc_h
-#define emc_h
 /**
-    Copyright (c) 2023, wicked systems
+    Copyright (c) 2025, wicked systems
     All rights reserved.
 
     Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following
@@ -21,53 +19,70 @@
     CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
     EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 **/
-#include <global.h>
-#include <sys/ios.h>
+#include "event.h"
+#include <string>
 
 namespace emc {
 
-/* type_flags
-*/
-constexpr unsigned int emi_kind_none = 0u;
-constexpr unsigned int emi_kind_gate_base = 0x00000001;
-constexpr unsigned int emi_kind_gate_last = 0x0000001f;
-constexpr unsigned int emi_kind_auth_base = 0x00000020;
-constexpr unsigned int emi_kind_auth_last = 0x0000004f;
-constexpr unsigned int emi_kind_core_base = 0x00000050;
-constexpr unsigned int emi_kind_core_last = 0x0000007f;
-constexpr unsigned int emi_kind_monitor = 0x000000ff;
-constexpr unsigned int emi_kind_bits = 0x000000ff;
+      event_t::event_t() noexcept
+{
+      std::memset(bytes, 0, sizeof(event_t));
+}
 
-// /* ring_flags
-// */
-// constexpr unsigned int emi_ring_unknown = 0u;
-// constexpr unsigned int emi_ring_network = 0u * 0x00000100;
-// constexpr unsigned int emi_ring_machine = 1u * 0x00000100;
-// constexpr unsigned int emi_ring_session = 2u * 0x00000100;
-// constexpr unsigned int emi_ring_process = 3u * 0x00000100;
+      event_t::event_t(const event_t& copy) noexcept
+{
+      std::memcpy(bytes, copy.bytes, sizeof(event_t));
+}
 
-constexpr unsigned int emi_ring_bits = 0x00000f00;
+      event_t::event_t(event_t&& copy) noexcept
+{
+      std::memcpy(bytes, copy.bytes, sizeof(event_t));
+      std::memset(copy.bytes, 0, sizeof(event_t));
+}
 
-/* packet_head_size
-*/
-constexpr int packet_head_size = 4;
-constexpr int packet_size_multiplier = 8;
-constexpr int packet_size_max = packet_size_multiplier * (1 << (packet_head_size - 1) << 2);
+      event_t::~event_t()
+{
+}
 
-/* chid_*
-   channel IDs
-*/
-constexpr int chid_none = 0;
-constexpr int chid_min = 1;
-constexpr int chid_max = 127;
+event_t event_t::for_descriptor(int descriptor) noexcept
+{
+      event_t l_result;
+      l_result.descriptor.value = descriptor;
+      return l_result;
+}
 
-/* objects
-*/
-class reactor;
-class stage;
-class monitor;
-class gateway;
-class controller;
+event_t event_t::for_message(char* message, std::size_t length) noexcept
+{
+      event_t l_result;
+      l_result.message.content = message;
+      l_result.message.length = length;
+      return l_result;
+}
+
+event_t event_t::for_packet(std::uint8_t* data, std::size_t size) noexcept
+{
+      event_t l_result;
+      l_result.packet.data = data;
+      l_result.packet.size = size;
+      return l_result;
+}
+
+
+event_t& event_t::operator=(const event_t& rhs) noexcept
+{
+      if(std::addressof(rhs) != this) {
+          std::memcpy(bytes, rhs.bytes, sizeof(event_t));
+      }
+      return *this;
+}
+
+event_t& event_t::operator=(event_t&& rhs) noexcept
+{
+      if(std::addressof(rhs) != this) {
+          std::memcpy(bytes, rhs.bytes, sizeof(event_t));
+          std::memset(rhs.bytes, 0, sizeof(event_t));
+      }
+      return *this;
+}
 
 /*namespace emc*/ }
-#endif

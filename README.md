@@ -4,7 +4,7 @@ EMC
 # 1. Description
 
 EMC is a library that encapsulates a lightweight protocol for communication between
-devices, as well as the basic software building blocks to support and extend it.
+devices and processes as well as the basic software building blocks to support and extend it.
 Core design principles are as follows:
 - human readable I/O, but not exclusively (support high-bandwidth data transfers as well,
   either directly or by sidecar connections);
@@ -30,7 +30,7 @@ base protocol with new services.
 Depending on the _function_ of the message pipeline - i.e. whether it is meant to _serve_
 particular functionality to a controlling device or act as a bridge towards an EMC-enabled
 server, a pipeline can have one of the following major _roles_:
-- _host_ role: serve a set of functions to a connecting instance;
+- _host_ role: serve a set of functions to a connecting instance, called an _agent_;
 - _user_ role: drive a connection to a remote EMC-enabled device.
 
 A hybrid, _proxy_ role can be defined by externally connecting two pipelines (one with a _host_
@@ -48,8 +48,8 @@ pipeline. Each stage is responsible for passing the message along to the next st
        |      |----->|                  |
        |      |      |----->            |
       ...    ...    ...      ...       ...
-       |      |      |            ----->| 
-       
+       |      |      |            ----->|
+
 ```
 
 On the return path, messages flow sequentially from the originating stage of the pipeline to
@@ -61,10 +61,10 @@ stage.
        |      |      |                  |
        |      |      |            <-----|
       ...    ...    ...      ...       ...
-       |      |      |<-----            | 
+       |      |      |<-----            |
        |      |<-----|                  |
        |<-----|      |                  |
-       
+
 ```
 
 ## 2.3. Pipelines
@@ -85,9 +85,9 @@ The `raw` pipeline operates with the following events:
    becomes available to a client;
    Pipelines in the `_host_` or `proxy` roles are considered to be implicitely connected, so
    this event will not be fired for them;
-- `recv`: inbound message received onto the aux channel (typically `stderr`);
-- `feed`: inbound message received;
-- `send`: outbound message to be sent out on the return flow;
+- `recv`: inbound message received onto the error stream (i.e. process`stderr`, where applicable);
+- `feed`: inbound message received onto the main stream;
+- `send`: outbound message to be sent out on the return path;
 - `drop`: connection to the server closed or lost.
 
 The events are accessible via the `rawstage` interface:
@@ -161,7 +161,7 @@ The events are accessible via the `emcstage` interface:
 
 ## 2.5. Controllers and Layers
 
-Controllers are a subset of EMC stages which provide a services to the _agent(s)_
+Controllers are a subset of EMC stages which provide a services to one or more agents.
 through the command line interface. Each controller extends the base protocol with an unique set
 of commands through which it can be interacted with, called a _Layer_.
 
@@ -169,35 +169,43 @@ of commands through which it can be interacted with, called a _Layer_.
   support list
 - `get_enabled()`: indicates whether or not the service is active
 
-## 2.6. Devices and Streams
+## 2.6. Mappers and Streams
 
-Devices implement high bandwith software interfaces to _streams_ on the machine. As opposed to
+Mappers provide a way to serve high bandwith binary interfaces (_streams_) to one or more agents.
+As opposed to controllers, mappers do *not* need to define and expose their own commands, but are instead accessible via a
+common set of commands, described by the "**map**" layer.
+
+Onto the agent side, objects called `Streams` are responsible for interfacing and mantaining a healthy connection with the
+mappers.
+
+For this purpose, the EMC library implements a set of conventions pertaining to mapper/device communication.
+
+<!-- How are mappers advertised to the agent??? -->
+
+<!-- ## 2.6. Devices and Streams
+
+Devices offer a high bandwith interface to _streams_ on the controlling device (agent). As opposed to
 generic controllers, Devices do *not* need to define their own commands, but are instead accessible
-via the "**dev**" layer, using commands such as:
+through a predefined set of commends (the "**dev**" layer) which they implement:
 
-  - `support`
-  - `describe [<device>]`
-  - `control`
-  - `open`
-  - `close`
-  - `sync`
 
 EMC manages devices and streams via special entity called a _mapper_, which can be further specialized
-for a multitude of device types and functions.
+for a multitude of device types and functions. -->
 
-## 2.7. Services
+## 2.7. Services and Interfaces
 
-Services are bits of functionality that an _agent_ can make available to an EMC device in order to fulfill certain tasks; Services are advertised by the controlling device (agent) upon connect via the `s+` command.
+Services are bits of functionality that an _agent_ can make available to an EMC device in order to fulfill certain tasks;
 
         agent      |      device
 
-                  EMC    
+                  EMC
       [service] <-----> [interface]
 
 <!-- - `get_layer_name`: name for the controller/layer; if `nullptr`, the service will be hidden from the
   support list
 - `get_enabled`: indicates whether or not the service is active -->
 
+Services are advertised by the agent upon connect (as part of the `sync` sequence) and via the `s*` event.
 
 # 3. The EMC Protocol
 
@@ -209,7 +217,7 @@ Services are bits of functionality that an _agent_ can make available to an EMC 
   EOL  := [\r] | [\n] | [\r\n]
 ```
 
-## 3.2. Standard Requests
+## 3.2. Standard Requests/Events
 
 ### 3.2.1. General form
 ```
@@ -249,7 +257,7 @@ Services are bits of functionality that an _agent_ can make available to an EMC 
   RESPONSE  := ']' 'c' SPC [LAYER [SPC LAYER]...] EOL
 ```
 
-### 3.3.4. `]g` - the 'pong' response
+### 3.4.1. `]g` - the 'pong' response
 ```
   RESPONSE := ']' 'g' SPC [^SPC]+ EOL
 ```
@@ -266,38 +274,6 @@ Services are bits of functionality that an _agent_ can make available to an EMC 
 ```
   RESPONSE := ']' 'z' .* EOL
 ```
-
-## 3.4. The `dev` layer
-
-### 3.4.1. The `support` request
-
-### 3.4.2. The `describe` request
-
-### 3.4.3. The `open` request
-
-> o <channel> <device> [<option>...]
-> o * <device> [<options>...]
-> o 0 <device> [<options>...]
-
-### 3.4.4. The `control` request
-
-> ctl <channel> +sync
-> ctl <channel> -sync
-
-### 3.4.5. The `read` request/event
-
-> r <channel> <offset> <size>
-
-### 3.4.6. The `write` request/event
-
-> w <channel> <offset>
-
-### 3.4.7. The `close` request
-
-> x <channel>
-
-### 3.4.8. The `sync` request
-
 ## 3.6. Services
 
 ## 3.7. Channels
@@ -315,41 +291,36 @@ Services are bits of functionality that an _agent_ can make available to an EMC 
 - ...
 - EOD
 
+# 4. Standard layers
 
-<!-- # 4. API
+## 4.1. The `map` layer
 
- [+] rawstage
-     [+] gateway
-         - emcstage* stage_head
-         - emcstage* stage_tail
+### 4.1.1. The `support` request
 
- [+] emcstage
-     [-] service
-     [-] monitor
+### 4.1.2. The `describe` request
 
- [+] reactor
-     - rawstage* stage_head
-     - rawstage* stage_tail
+### 4.1.3. The `open` request
 
- [+] timer
-    
+> o <channel> <device> [<option>...]
+> o * <device> [<options>...]
+> o 0 <device> [<options>...]
 
-## 4.1. Core components
+### 4.1.4. The `control` request
 
-### 4.1.1. `reactor`
+> ctl <channel> +sync
+> ctl <channel> -sync
 
-### 4.1.2. `session`
+### 4.1.5. The `read` request/event
 
-### 4.1.3. `machine`
+> r <channel> <offset> <size>
 
-### 4.1.4. `monitor`
+### 4.1.6. The `write` request/event
 
-## 4.2. Helper classes
+> w <channel> <offset>
 
-### 4.2.1. `gateway`
+### 4.1.7. The `close` request
 
-### 4.2.2. `command`
+> x <channel>
 
-### 4.2.3. `timer`
+### 4.1.8. The `sync` request
 
-## 4.3. Error reporting -->
