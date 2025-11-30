@@ -42,7 +42,7 @@ class stage
 
   protected:
   reactor*      p_owner;
-  unsigned int  m_flags;
+  unsigned int  m_type;
 
   protected:
           auto  emc_get_owner() noexcept -> reactor*;
@@ -50,20 +50,19 @@ class stage
   virtual bool  emc_raw_resume(reactor*) noexcept;
   virtual void  emc_raw_join() noexcept;
   virtual void  emc_raw_proto_up(const char*, const char*, unsigned int) noexcept;
-  virtual void  emc_raw_recv(std::uint8_t*, std::size_t) noexcept;
-  virtual int   emc_raw_feed(std::uint8_t*, std::size_t) noexcept;
-  virtual int   emc_raw_send(std::uint8_t*, std::size_t) noexcept;
+  virtual int   emc_raw_recv(int, std::uint8_t*, std::size_t) noexcept;
+  virtual int   emc_raw_send(int, std::uint8_t*, std::size_t) noexcept;
   virtual void  emc_raw_proto_down() noexcept;
   virtual void  emc_raw_drop() noexcept;
   virtual void  emc_raw_suspend(reactor*) noexcept;
   virtual void  emc_raw_detach(reactor*) noexcept;
   virtual void  emc_raw_sync(float) noexcept;
-          void  emc_raw_post(int) noexcept;
-  virtual int   emc_raw_post(int, const event_t&) noexcept;
+          void  emc_raw_post(event) noexcept;
+  virtual int   emc_raw_post(event, const event_info_t&) noexcept;
   friend  class reactor;
 
   public:
-          stage(unsigned int = emi_kind_monitor) noexcept;
+          stage(unsigned int = stage_type_generic) noexcept;
           stage(const stage&) noexcept = delete;
           stage(stage&&) noexcept = delete;
   virtual ~stage();
@@ -72,11 +71,11 @@ class stage
           bool         has_owner(reactor*) const noexcept;
           reactor*     get_owner() noexcept;
 
-          bool         has_type(const char*) const noexcept;
-  virtual const char*  get_type() const noexcept;
-          bool         has_kind(unsigned int) const noexcept;
-          bool         has_kind(unsigned int, unsigned int) const noexcept;
-          unsigned int get_kind() const noexcept;
+          bool         has_name(const char*) const noexcept;
+  virtual const char*  get_name() const noexcept;
+          bool         has_type(unsigned int) const noexcept;
+          bool         has_type(unsigned int, unsigned int) const noexcept;
+          unsigned int get_type() const noexcept;
 
   virtual const char*  get_layer_name(int) const noexcept;
           bool         has_ring_flags(unsigned int) const noexcept;

@@ -78,32 +78,66 @@ The `emc` pipeline, which implements the EMC protocol is branched out from the `
 at the end of the transcoding chain (if any).
 An `emc` pipeline can be enabled by attaching a `gateway` stage to the `raw` pipeline.
 
-### 2.3.1. The `raw` pipeline
+### 2.3.1. Stage callbacks
 
 The `raw` pipeline operates with the following events:
-- `join`: triggered by _some_ reactors or interface stages when a socket or device connection
-   becomes available to a client;
-   Pipelines in the `_host_` or `proxy` roles are considered to be implicitely connected, so
-   this event will not be fired for them;
-- `recv`: inbound message received onto the error stream (i.e. process`stderr`, where applicable);
+- `attach`: triggered for individual stages when they are added onto the pipeline;
+- `resume`: triggered for every stage when the reactor resumed operation;
+- `join`: triggered for every stage when the reactor is ready to communicate on a network or bus;
+- `proto_up`: called for protocol stages when the handshake for a higher level protocol is successful;
+<!-- - `recv`: inbound message received onto the error stream (i.e. process`stderr`, where applicable);
 - `feed`: inbound message received onto the main stream;
-- `send`: outbound message to be sent out on the return path;
-- `drop`: connection to the server closed or lost.
+- `send`: outbound message to be sent out on the return path; -->
+- `proto_down`: called for protocol stages when the protocol is disabled or critically fails;
+- `drop`: triggered for every stage when the reactor is no longer able or ready to communicate on a
+network or bus;
+- `suspend`: triggered for every stage when the reactor suspended operation;
+- `detach`: triggered on individual stages when they are removed from the pipeline;
+- `sync`: called periodically
 
-The events are accessible via the `rawstage` interface:
-```
-  bool  emc_raw_resume(reactor*): non-negociable resume callback
-  void  emc_raw_join()
-  void  emc_raw_recv(std::uint8_t*, int)
-  int   emc_raw_feed(std::uint8_t*, int)
-  int   emc_raw_send(std::uint8_t*, int)
-  void  emc_raw_drop()
-  void  emc_raw_suspend(reactor*)
-  void  emc_raw_event(int, void*)
-  void  emc_raw_sync(float)
+### 2.3.2. The stage API
+
+The above events correspond to function callbacks into the `stage` interface:
+```cpp
+  void  emc_raw_attach(reactor*) noexcept;
+  bool  emc_raw_resume(reactor*) noexcept;
+  void  emc_raw_join() noexcept;
+  void  emc_raw_proto_up(const char*, const char*, unsigned int) noexcept;
+  void  emc_raw_recv(std::uint8_t*, std::size_t) noexcept;
+  int   emc_raw_feed(std::uint8_t*, std::size_t) noexcept;
+  int   emc_raw_send(std::uint8_t*, std::size_t) noexcept;
+  void  emc_raw_proto_down() noexcept;
+  void  emc_raw_drop() noexcept;
+  void  emc_raw_suspend(reactor*) noexcept;
+  void  emc_raw_detach(reactor*) noexcept;
+  void  emc_raw_sync(float) noexcept;
 ```
 
-### 2.3.2. The `emc` pipeline
+### 2.3.3. Reactor events
+
+- `ev_accept`:
+- `ev_fee`:
+- `ev_pendin`:
+- `ev_listenin`:
+- `ev_runnin`:
+- `ev_joi`:
+- `ev_connec`:
+- `ev_send`:
+- `ev_recv_std`:
+- `ev_recv_aux`:
+- `ev_progress`:
+- `ev_disconnect`:
+- `ev_terminating`:
+- `ev_drop`:
+- `ev_hup`:
+- `ev_close_request`:
+- `ev_reset_request`:
+- `ev_abort`:
+- `ev_terminated`:
+- `ev_soft_fault`:
+- `ev_hard_fault`:
+
+<!-- ### 2.3.2. The `emc` pipeline
 
 The `emc` pipeline operates with the following events:
 
@@ -147,7 +181,7 @@ The events are accessible via the `emcstage` interface:
   void  emc_std_suspend(gateway*) noexcept
   void  emc_std_event(int, void*)
   void  emc_std_sync(float)
-```
+``` -->
 
 ## 2.4. Rings
 

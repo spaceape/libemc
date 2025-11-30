@@ -32,8 +32,8 @@ namespace emc {
 */
 class reactor
 {
-  stage*  p_stage_head;
-  stage*  p_stage_tail;
+  stage*        p_stage_head;
+  stage*        p_stage_tail;
 
   protected:
   stage*        p_recv_stage;     // input stage
@@ -42,9 +42,9 @@ class reactor
   std::uint8_t  m_record_events;
 
   protected:
-  bool    m_resume_bit;
-  bool    m_join_bit;
-  bool    m_open_bit;
+  bool          m_resume_bit;
+  bool          m_join_bit;
+  bool          m_open_bit;
 
   private:
   bool          m_record_enable;
@@ -54,9 +54,6 @@ class reactor
           bool  sys_resume_all() noexcept;
           void  sys_join_all() noexcept;
           void  sys_open_all() noexcept;
-          void  sys_recv(std::uint8_t*, std::size_t) noexcept;
-          int   sys_feed(std::uint8_t*, std::size_t) noexcept;
-          int   sys_send(std::uint8_t*, std::size_t) noexcept;
           void  sys_close(stage*) noexcept;
           void  sys_close_all() noexcept;
           void  sys_drop(stage*) noexcept;
@@ -74,28 +71,27 @@ class reactor
           void  sys_delete_events() noexcept;
 
   protected:
-  virtual void  emc_raw_attach(stage*) noexcept;
   virtual bool  emc_raw_resume() noexcept;
-  virtual void  emc_raw_proto_up(const char*, const char*, unsigned int) noexcept;
-  virtual void  emc_raw_proto_down() noexcept;
+          int   emc_raw_recv(int, std::uint8_t*, std::size_t) noexcept;
   virtual bool  emc_raw_suspend() noexcept;
-  virtual void  emc_raw_detach(stage*) noexcept;
   virtual void  emc_raw_sync(float) noexcept;
-  virtual int   emc_raw_event(int, const event_t&) noexcept;
+  virtual int   emc_raw_event(event, const event_info_t&) noexcept;
 
-  protected:
-          bool  emc_resume() noexcept;
-          bool  emc_suspend() noexcept;
+          bool  pod_resume() noexcept;
+          bool  pod_attach_stage(stage*) noexcept;
+          bool  pod_detach_stage(stage*) noexcept;
+          bool  pod_suspend(bool = true) noexcept;
 
+  friend class stage;
   public:
           reactor() noexcept;
           reactor(const reactor&) noexcept = delete;
           reactor(reactor&&) noexcept = delete;
   virtual ~reactor();
 
-          bool      attach(stage*) noexcept;
-          bool      detach(stage*) noexcept;
-          int       post(int, const event_t&) noexcept;
+  virtual void      feed(int) noexcept;
+  virtual void      hup(int) noexcept;
+          int       post(event, const event_info_t&) noexcept;
           void      sync(float) noexcept;
 
           reactor&  operator=(const reactor&) noexcept = delete;

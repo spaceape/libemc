@@ -28,25 +28,25 @@ namespace emc {
 
 /* type_flags
 */
-constexpr unsigned int emi_kind_none = 0u;
-constexpr unsigned int emi_kind_gate_base = 0x00000001;
-constexpr unsigned int emi_kind_gate_last = 0x0000001f;
-constexpr unsigned int emi_kind_auth_base = 0x00000020;
-constexpr unsigned int emi_kind_auth_last = 0x0000004f;
-constexpr unsigned int emi_kind_core_base = 0x00000050;
-constexpr unsigned int emi_kind_core_last = 0x0000007f;
-constexpr unsigned int emi_kind_monitor = 0x000000ff;
-constexpr unsigned int emi_kind_bits = 0x000000ff;
+constexpr unsigned int stage_type_none = 0u;
+constexpr unsigned int stage_type_gate_base = 0x00000001;
+constexpr unsigned int stage_type_gate_last = 0x0000001f;
+constexpr unsigned int stage_type_auth_base = 0x00000020;
+constexpr unsigned int stage_type_auth_last = 0x0000004f;
+constexpr unsigned int stage_type_core_base = 0x00000050;
+constexpr unsigned int stage_type_core_last = 0x0000007f;
+constexpr unsigned int stage_type_generic = 0x000000ff;
+constexpr unsigned int stage_type_bits = 0x000000ff;
 
-// /* ring_flags
-// */
-// constexpr unsigned int emi_ring_unknown = 0u;
-// constexpr unsigned int emi_ring_network = 0u * 0x00000100;
-// constexpr unsigned int emi_ring_machine = 1u * 0x00000100;
-// constexpr unsigned int emi_ring_session = 2u * 0x00000100;
-// constexpr unsigned int emi_ring_process = 3u * 0x00000100;
+/* ring_flags
+*/
+constexpr unsigned int ring_unknown = 0u;
+constexpr unsigned int ring_network = 0u * 0x00000100;
+constexpr unsigned int ring_machine = 1u * 0x00000100;
+constexpr unsigned int ring_session = 2u * 0x00000100;
+constexpr unsigned int ring_process = 3u * 0x00000100;
 
-constexpr unsigned int emi_ring_bits = 0x00000f00;
+constexpr unsigned int ring_bits = 0x00000f00;
 
 /* packet_head_size
 */

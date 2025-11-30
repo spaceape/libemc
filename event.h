@@ -25,134 +25,66 @@
 
 namespace emc {
 
-/* ev_accept
-*/
-static constexpr int  ev_accept = 1;
-
-/* ev_feed
-   signal the reactor that data is available on an input descriptor
-*/
-static constexpr int  ev_feed = 2;
-
-/* ev_pending
-*/
-static constexpr int  ev_pending = 5;
-
-/* ev_running
-*/
-static constexpr int  ev_running = 6;
-
-/* ev_join
-   signal the reactor that the endpoint connection is up
-*/
-static constexpr int  ev_join = 7;
-
-/* ev_connect
-*/
-static constexpr int  ev_connect = 8;
-
-/* ev_send
-*/
-static constexpr int  ev_send = 15;
-
-/* ev_recv_std
-*/
-static constexpr int  ev_recv_std = 31;
-
-/* ev_recv_std
-*/
-static constexpr int  ev_recv_aux = 32;
-
-/* ev_progress
-*/
-static constexpr int  ev_progress = 36;
-
-/* ev_disconnect
-*/
-static constexpr int  ev_disconnect = 124;
-
-/* ev_terminating
-*/
-static constexpr int  ev_terminating = 126;
-
-/* ev_drop
-   signal the reactor that the endpoint connection is down
-*/
-static constexpr int  ev_drop = 127;
-
-/* ev_hup
-   signal the reactor that the endpoint has hung up
-*/
-static constexpr int  ev_hup = 128;
-
-/* ev_close_request
-   signal the reactor that the endpoint requests a close
-*/
-static constexpr int  ev_close_request = 132;
-
-/* ev_reset_request
-   signal the reactor that the application requested a pipeline reset
-*/
-static constexpr int  ev_reset_request = 133;
-
-/* ev_abort
-*/
-static constexpr int  ev_abort = 192;
-
-/* ev_terminated
-*/
-static constexpr int  ev_terminated = 224;
-
-/* ev_soft_fault
-   generic fault in one of the stages
-*/
-static constexpr int  ev_soft_fault = 254;
-
-/* ev_hard_fault
-   generic fault in one of the stages; not recoverable, should end up with a suspend
-*/
-static constexpr int  ev_hard_fault = 255;
-
-/* ev_user_base
-*/
-static constexpr int  ev_user_base = 256;
-
-/* ev_user_last
-*/
-static constexpr int  ev_user_last = 65535;
-
-/* event
-*/
-union event_t
+enum class event
 {
-  struct {
-    int value;
-  } descriptor;
+  accept = 1,
+  acquire_bus = 7,        // a stage (typically a gateway stage) obtained a descriptor (useful for polling)
+  release_bus = 15,       // a stage (typically a gateway stage) needs to close a descriptor
+  feed = 16,              // signal the reactor that data is available on an input/output descriptor
+  pending = 20,
+  listening = 23,
+  running = 24,
+  join = 30,
+  recv = 31,              // called last on the reactor after a received message has passed through every stage in the pipeline
+  send = 32,              // called last on the reactor after a message to be sent has passed through every stage in the pipeline
+  progress = 36,
+  terminating = 126,
+  drop = 127,
+  hup = 128,
+  abort = 192,
+  terminated = 224,
+  soft_fault = 254,       // generic fault in one of the stages
+  hard_fault = 255,       // generic fault in one of the stages; not recoverable, should end up with a suspend
+  user_base = 256,
+  user_last = 65535
+};
+
+union event_info_t
+{
+  int descriptor;
 
   struct {
-    char*         content;
-    std::size_t   length;
-  } message;
+    int           descriptor;
+  } feed, hup, release_bus;
 
   struct {
+    int           descriptor;
+    unsigned int  events;
+  } acquire_bus;
+
+  struct {
+    int           bus;
     std::uint8_t* data;
     std::size_t   size;
-  } packet;
+  } recv, send;
 
   char bytes[0];
 
   public:
-  static  event_t for_descriptor(int) noexcept;
-  static  event_t for_message(char*, std::size_t) noexcept;
-  static  event_t for_packet(std::uint8_t*, std::size_t) noexcept;
+  static  event_info_t for_bus_acquire(int, unsigned int) noexcept;
+  static  event_info_t for_bus_release(int) noexcept;
+  static  event_info_t for_feed(int) noexcept;
+  static  event_info_t for_hup(int) noexcept;
+  static  event_info_t for_recv(int, std::uint8_t*, std::size_t) noexcept;
+  static  event_info_t for_send(int, std::uint8_t*, std::size_t) noexcept;
 
   public:
-          event_t() noexcept;
-          event_t(const event_t&) noexcept;
-          event_t(event_t&&) noexcept;
-          ~event_t();
-          event_t& operator=(const event_t&) noexcept;
-          event_t& operator=(event_t&&) noexcept;
+          event_info_t() noexcept;
+          event_info_t(const event_info_t&) noexcept;
+          event_info_t(event_info_t&&) noexcept;
+          ~event_info_t();
+          event_info_t& operator=(const event_info_t&) noexcept;
+          event_info_t& operator=(event_info_t&&) noexcept;
 };
 
 /*namespace emc*/ }

@@ -24,63 +24,86 @@
 
 namespace emc {
 
-      event_t::event_t() noexcept
+      event_info_t::event_info_t() noexcept
 {
-      std::memset(bytes, 0, sizeof(event_t));
+      std::memset(bytes, 0, sizeof(event_info_t));
 }
 
-      event_t::event_t(const event_t& copy) noexcept
+      event_info_t::event_info_t(const event_info_t& copy) noexcept
 {
-      std::memcpy(bytes, copy.bytes, sizeof(event_t));
+      std::memcpy(bytes, copy.bytes, sizeof(event_info_t));
 }
 
-      event_t::event_t(event_t&& copy) noexcept
+      event_info_t::event_info_t(event_info_t&& copy) noexcept
 {
-      std::memcpy(bytes, copy.bytes, sizeof(event_t));
-      std::memset(copy.bytes, 0, sizeof(event_t));
+      std::memcpy(bytes, copy.bytes, sizeof(event_info_t));
+      std::memset(copy.bytes, 0, sizeof(event_info_t));
 }
 
-      event_t::~event_t()
+      event_info_t::~event_info_t()
 {
 }
 
-event_t event_t::for_descriptor(int descriptor) noexcept
+event_info_t event_info_t::for_bus_acquire(int descriptor, unsigned int events) noexcept
 {
-      event_t l_result;
-      l_result.descriptor.value = descriptor;
+      event_info_t l_result;
+      l_result.acquire_bus.descriptor = descriptor;
+      l_result.acquire_bus.events = events;
       return l_result;
 }
 
-event_t event_t::for_message(char* message, std::size_t length) noexcept
+event_info_t event_info_t::for_bus_release(int descriptor) noexcept
 {
-      event_t l_result;
-      l_result.message.content = message;
-      l_result.message.length = length;
+      event_info_t l_result;
+      l_result.release_bus.descriptor = descriptor;
       return l_result;
 }
 
-event_t event_t::for_packet(std::uint8_t* data, std::size_t size) noexcept
+event_info_t event_info_t::for_feed(int descriptor) noexcept
 {
-      event_t l_result;
-      l_result.packet.data = data;
-      l_result.packet.size = size;
+      event_info_t l_result;
+      l_result.feed.descriptor = descriptor;
       return l_result;
 }
 
+event_info_t event_info_t::for_hup(int descriptor) noexcept
+{
+      event_info_t l_result;
+      l_result.hup.descriptor = descriptor;
+      return l_result;
+}
 
-event_t& event_t::operator=(const event_t& rhs) noexcept
+event_info_t event_info_t::for_recv(int bus, std::uint8_t* data, std::size_t size) noexcept
+{
+      event_info_t l_result;
+      l_result.recv.bus = bus;
+      l_result.recv.data = data;
+      l_result.recv.size = size;
+      return l_result;
+}
+
+event_info_t event_info_t::for_send(int bus, std::uint8_t* data, std::size_t size) noexcept
+{
+      event_info_t l_result;
+      l_result.send.bus = bus;
+      l_result.send.data = data;
+      l_result.send.size = size;
+      return l_result;
+}
+
+event_info_t& event_info_t::operator=(const event_info_t& rhs) noexcept
 {
       if(std::addressof(rhs) != this) {
-          std::memcpy(bytes, rhs.bytes, sizeof(event_t));
+          std::memcpy(bytes, rhs.bytes, sizeof(event_info_t));
       }
       return *this;
 }
 
-event_t& event_t::operator=(event_t&& rhs) noexcept
+event_info_t& event_info_t::operator=(event_info_t&& rhs) noexcept
 {
       if(std::addressof(rhs) != this) {
-          std::memcpy(bytes, rhs.bytes, sizeof(event_t));
-          std::memset(rhs.bytes, 0, sizeof(event_t));
+          std::memcpy(bytes, rhs.bytes, sizeof(event_info_t));
+          std::memset(rhs.bytes, 0, sizeof(event_info_t));
       }
       return *this;
 }

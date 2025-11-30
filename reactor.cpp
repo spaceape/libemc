@@ -55,12 +55,12 @@ void  reactor::sys_attach(stage* stage_ptr) noexcept
 {
       stage* p_stage_prev = p_stage_tail;
       stage* p_stage_next = nullptr;
-      auto   l_stage_kind = stage_ptr->get_kind();
-      // if stage is one of the known kinds - insert in the order of their kind value
-      if((l_stage_kind >= emi_kind_gate_base) &&
-          (l_stage_kind <= emi_kind_core_last)) {
+      auto   l_stage_type = stage_ptr->get_type();
+      // if stage is one of the known types - insert in the order of their type value
+      if((l_stage_type >= stage_type_gate_base) &&
+          (l_stage_type <= stage_type_core_last)) {
           while(p_stage_prev != nullptr) {
-              if(l_stage_kind >= p_stage_prev->get_kind()) {
+              if(l_stage_type >= p_stage_prev->get_type()) {
                   break;
               }
               p_stage_next = p_stage_prev;
@@ -207,7 +207,7 @@ void  reactor::sys_detach(stage* stage_ptr) noexcept
       sys_restore_events(l_restore_events);
 }
 
-void  reactor::sys_detach_all()
+void  reactor::sys_detach_all() noexcept
 {
       while(p_stage_tail != nullptr) {
           sys_detach(p_stage_tail);
@@ -249,21 +249,17 @@ void  reactor::sys_delete_events() noexcept
       m_record_enable = false;
 }
 
-void  reactor::emc_raw_attach(stage*) noexcept
-{
-}
-
 bool  reactor::emc_raw_resume() noexcept
 {
       return true;
 }
 
-void  reactor::emc_raw_proto_up(const char*, const char*, unsigned int) noexcept
+int   reactor::emc_raw_recv(int bus, std::uint8_t* data, std::size_t size) noexcept
 {
-}
-
-void  reactor::emc_raw_proto_down() noexcept
-{
+      if(p_stage_head != nullptr) {
+          return p_stage_head->emc_raw_recv(bus, data, size);
+      } else
+          return err_no_response;
 }
 
 bool  reactor::emc_raw_suspend() noexcept
@@ -271,20 +267,16 @@ bool  reactor::emc_raw_suspend() noexcept
       return true;
 }
 
-void  reactor::emc_raw_detach(stage*) noexcept
-{
-}
-
 void  reactor::emc_raw_sync(float) noexcept
 {
 }
 
-int   reactor::emc_raw_event(int, const event_t&) noexcept
+int   reactor::emc_raw_event(event, const event_info_t&) noexcept
 {
-      return err_refuse;
+      return err_not_required;
 }
 
-bool  reactor::emc_resume() noexcept
+bool  reactor::pod_resume() noexcept
 {
       if(m_resume_bit == false) {
           if(sys_resume_all() == false) {
@@ -298,29 +290,18 @@ bool  reactor::emc_resume() noexcept
       return m_resume_bit == true;
 }
 
-bool  reactor::emc_suspend() noexcept
-{
-      if(m_resume_bit == true) {
-          if(emc_raw_suspend() == false) {
-              return false;
-          }
-          sys_suspend_all();
-      }
-      return m_resume_bit == false;
-}
-
-bool  reactor::attach(stage* stage_ptr) noexcept
+bool  reactor::pod_attach_stage(stage* stage_ptr) noexcept
 {
       if(stage_ptr != nullptr) {
           if(stage_ptr->p_owner == nullptr) {
               std::uint8_t l_restore_events;
-              if(stage_ptr->has_kind(emi_kind_gate_base, emi_kind_gate_last)) {
+              if(stage_ptr->has_type(stage_type_gate_base, stage_type_gate_last)) {
                   if(p_recv_stage != nullptr) {
                       return false;
                   }
                   p_recv_stage = stage_ptr;
               } else
-              if(stage_ptr->has_kind(emi_kind_core_base, emi_kind_core_base)) {
+              if(stage_ptr->has_type(stage_type_core_base, stage_type_core_base)) {
                   if(p_core_stage != nullptr) {
                       return false;
                   }
@@ -348,7 +329,7 @@ bool  reactor::attach(stage* stage_ptr) noexcept
       return false;
 }
 
-bool  reactor::detach(stage* stage_ptr) noexcept
+bool  reactor::pod_detach_stage(stage* stage_ptr) noexcept
 {
       if(stage_ptr != nullptr) {
           if(stage_ptr->p_owner == this) {
@@ -362,32 +343,49 @@ bool  reactor::detach(stage* stage_ptr) noexcept
       return false;
 }
 
-int   reactor::post(int id, const event_t& data) noexcept
+bool  reactor::pod_suspend(bool send_suspend_event) noexcept
 {
-      int l_result = emc_raw_event(id, data);
-      if(l_result == err_refuse) {
+      if(m_resume_bit == true) {
+          if((send_suspend_event == true) ||
+              (emc_raw_suspend() == false)) {
+              return false;
+          }
+          sys_suspend_all();
+      }
+      return m_resume_bit == false;
+}
+
+void  reactor::feed(int) noexcept
+{
+}
+
+void  reactor::hup(int) noexcept
+{
+}
+
+int   reactor::post(event id, const event_info_t& info) noexcept
+{
+      int l_result = emc_raw_event(id, info);
+      if(l_result == err_not_required) {
           switch(id) {
-            case ev_send:
-                l_result = err_okay;
-                break;
-            case ev_drop:
-            case ev_hup:
-            case ev_close_request:
-            case ev_reset_request:
-            case ev_abort:
-            case ev_terminated:
-            case ev_soft_fault:
-            case ev_hard_fault:
+            case event::drop:
+            case event::hup:
+            case event::abort:
+            case event::terminated:
+            case event::soft_fault:
+            case event::hard_fault:
                 if(m_record_enable) {
                     m_record_events |= rem_suspend;
                 }
                 if(m_enable_events & rem_suspend) {
-                    if(emc_suspend()) {
+                    if(pod_suspend()) {
                         l_result = err_okay;
                     } else
                         l_result = err_fail;
                 } else
                     l_result = err_okay;
+                break;
+            default:
                 break;
           }
       }

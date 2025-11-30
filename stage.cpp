@@ -26,18 +26,18 @@ namespace emc {
 
 /* stage
 */
-      stage::stage(unsigned int flags) noexcept:
+      stage::stage(unsigned int type) noexcept:
       p_stage_prev(nullptr),
       p_stage_next(nullptr),
       p_owner(nullptr),
-      m_flags(flags)
+      m_type(type)
 {
 }
 
       stage::~stage() noexcept
 {
       if(p_owner != nullptr) {
-          p_owner->detach(this);
+          p_owner->pod_detach_stage(this);
       }
 }
 
@@ -76,58 +76,47 @@ void  stage::emc_raw_proto_up(const char*, const char*, unsigned int) noexcept
 }
 
 /* emc_raw_recv()
-   called from upstream when a message is received onto the aux (or binary) stream
+   forward path chained call for handling messages received on the network or bus; each stage processes it and continues to
+   invoke the same call on the next stage;
+   current stage is allowed to modify the received message before forwarding it to the next one.
 */
-void  stage::emc_raw_recv(std::uint8_t* data, std::size_t size) noexcept
+int   stage::emc_raw_recv(int bus, std::uint8_t* data, std::size_t size) noexcept
 {
-      if(has_owner() &&
-          has_kind(emi_kind_gate_base, emi_kind_gate_last)) {
-          // input stage, notify the reactor with a pointer to the data buffer
-          if(p_owner != nullptr) {
-              p_owner->post(ev_recv_aux, event_t::for_packet(data, size));
-          }
-      }
       if(p_stage_next != nullptr) {
-          p_stage_next->emc_raw_recv(data, size);
+          return p_stage_next->emc_raw_recv(bus, data, size);
       }
-}
-
-/* emc_raw_feed()
-   called from upstream when a message is received onto the std stream
- */
-int   stage::emc_raw_feed(std::uint8_t* data, std::size_t size) noexcept
-{
-      int l_result = err_refuse;
-      if(has_owner() &&
-          has_kind(emi_kind_gate_base, emi_kind_gate_last)) {
-          // input stage, notify the reactor with a pointer to the data buffer
+      if(p_owner != nullptr) {
+          int  l_result = err_fail;
+          // last stage, notify the reactor with a pointer to the data buffer as it now looks like
           if(p_owner != nullptr) {
-              l_result = p_owner->post(ev_recv_std, event_t::for_packet(data, size));
+              l_result = p_owner->post(event::recv, event_info_t::for_recv(bus, data, size));
+              if((l_result == err_okay) ||
+                  (l_result == err_not_required)) {
+                  l_result = err_okay;
+              }
           }
+          return l_result;
       }
-      if(l_result == err_refuse) {
-          if(p_stage_next != nullptr) {
-              l_result = p_stage_next->emc_raw_feed(data, size);
-          }
-      }
-      return l_result;
+      return err_okay;
 }
 
 /* emc_raw_send()
-   called on the return path when a message is to be sent back
+   return path chained call for sending messages back onto the network or bus;
+   each stage processes it and continues to invoke the same call on the previous stage;
+   current stage is allowed to modify the received message before forwarding it to the next one.
 */
-int   stage::emc_raw_send(std::uint8_t* data, std::size_t size) noexcept
+int   stage::emc_raw_send(int bus, std::uint8_t* data, std::size_t size) noexcept
 {
       if(p_stage_prev != nullptr) {
-          return p_stage_prev->emc_raw_send(data, size);
-      } else
+          return p_stage_prev->emc_raw_send(bus, data, size);
+      }
       if(p_owner != nullptr) {
           int  l_result = err_fail;
           // first stage, notify the reactor with a pointer to the data buffer
           if(p_owner != nullptr) {
-              l_result = p_owner->post(ev_send, event_t::for_packet(data, size));
+              l_result = p_owner->post(event::send, event_info_t::for_send(bus, data, size));
               if((l_result == err_okay) ||
-                  (l_result == err_refuse)) {
+                  (l_result == err_not_required)) {
                   l_result = err_okay;
               }
           }
@@ -173,19 +162,19 @@ void  stage::emc_raw_sync(float) noexcept
 
 /* emc_raw_post()
 */
-void  stage::emc_raw_post(int id) noexcept
+void  stage::emc_raw_post(event id) noexcept
 {
-      event_t l_event;
+      event_info_t l_event;
       emc_raw_post(id, l_event);
 }
 
 /* emc_raw_event()
    custom event called on the return path (i.e. on unexpected stage failures)
 */
-int   stage::emc_raw_post(int id, const event_t& event) noexcept
+int   stage::emc_raw_post(event id, const event_info_t& info) noexcept
 {
       if(p_owner != nullptr) {
-          return p_owner->post(id, event);
+          return p_owner->post(id, info);
       }
       return err_fail;
 }
@@ -211,34 +200,33 @@ auto  stage::get_owner() noexcept -> reactor*
       return p_owner;
 }
 
-/* has_type()
+/* has_name()
 */
-bool  stage::has_type(const char*) const noexcept
+bool  stage::has_name(const char*) const noexcept
 {
       return false;
 }
 
-/* get_type()
+/* get_name()
 */
-auto  stage::get_type() const noexcept -> const char*
+auto  stage::get_name() const noexcept -> const char*
 {
       return nullptr;
 }
 
-/* has_kind()
+/* has_type()
 */
-bool  stage::has_kind(unsigned int flags) const noexcept
+bool  stage::has_type(unsigned int type) const noexcept
 {
-      return (m_flags & emi_kind_bits & flags) != 0u;
+      return (m_type & type) != 0u;
 }
 
-/* has_kind()
+/* has_type()
 */
-bool  stage::has_kind(unsigned int kind_range_min, unsigned int kind_range_max) const noexcept
+bool  stage::has_type(unsigned int kind_range_min, unsigned int kind_range_max) const noexcept
 {
-      unsigned int l_kind = (m_flags & emi_kind_bits);
-      if((l_kind >= kind_range_min) &&
-          (l_kind <= kind_range_max)) {
+      if((m_type >= kind_range_min) &&
+          (m_type <= kind_range_max)) {
           return true;
       }
       return false;
@@ -246,9 +234,9 @@ bool  stage::has_kind(unsigned int kind_range_min, unsigned int kind_range_max) 
 
 /* get_layer_flags()
 */
-auto  stage::get_kind() const noexcept -> unsigned int
+auto  stage::get_type() const noexcept -> unsigned int
 {
-      return (m_flags & emi_kind_bits);
+      return m_type;
 }
 
 /* get_layer_name()
@@ -262,14 +250,14 @@ auto  stage::get_layer_name(int) const noexcept -> const char*
 */
 bool  stage::has_ring_flags(unsigned int flags) const noexcept
 {
-      return (m_flags && emi_ring_bits && flags) != 0u;
+      return (m_type & ring_bits & flags) != 0u;
 }
 
 /* get_layer_flags()
 */
 unsigned int stage::get_ring_flags() const noexcept
 {
-      return (m_flags & emi_ring_bits);
+      return (m_type & ring_bits);
 }
 
 /* describe()
